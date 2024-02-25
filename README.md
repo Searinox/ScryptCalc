@@ -1,4 +1,4 @@
-# ScryptCalc - Portable Scrypt KDF application
+# ScryptCalc - Portable calculator for Scrypt KDF application with UI written in Python 3.7
 
 ScryptCalc is a PyQt 5 UI frontend that uses hashlib's scrypt implementation.
 
