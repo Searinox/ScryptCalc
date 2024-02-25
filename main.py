@@ -1,0 +1,633 @@
+import base64,ctypes,os,sys,time,threading,hashlib
+from PyQt5.QtCore import (PYQT_VERSION_STR,Qt,QObject,pyqtSignal,qInstallMessageHandler)
+from PyQt5.QtWidgets import (QStyle,QApplication,QLabel,QLineEdit,QMainWindow,QPushButton,QSpinBox,QTextEdit,QComboBox)
+from PyQt5.QtGui import (QFont,QTextOption)
+
+PYQT5_MAX_SUPPORTED_COMPILE_VERSION="5.12.2"
+
+GetTickCount64=ctypes.windll.kernel32.GetTickCount64
+GetTickCount64.restype=ctypes.c_uint64
+GetTickCount64.argtypes=()
+
+def Versions_Str_Equal_Or_Less(version_expected,version_actual):
+    version_compliant=False
+    compared_versions=[]
+    for compared_version in [version_expected,version_actual]:
+        compared_versions+=[[int(number.strip()) for number in compared_version.split(".")]]
+    if compared_versions[1][0]<=compared_versions[0][0]:
+        if compared_versions[1][0]<compared_versions[0][0]:
+            version_compliant=True
+        elif compared_versions[1][1]<=compared_versions[0][1]:
+            if compared_versions[1][1]<compared_versions[0][1]:
+                version_compliant=True
+            elif compared_versions[1][2]<=compared_versions[0][2]:
+                version_compliant=True
+    return version_compliant
+
+
+class ScryptCalc(object):
+    PURGE_VALUE="0x00"*256
+
+    MAINTHREAD_HEARTBEAT_SECONDS=0.1
+    PENDING_ACTIVITY_HEARTBEAT_SECONDS=0.1
+
+    COMPUTE_MEMORY_MAX_BYTES=2147483647
+
+    PARAM_INPUT_MAX=128
+    PARAM_SALT_MAX=128
+    PARAM_N_EXPONENT_MIN=1
+    PARAM_N_EXPONENT_MAX=22
+    PARAM_R_MIN=1
+    PARAM_R_MAX=128
+    PARAM_P_MIN=1
+    PARAM_P_MAX=128
+    PARAM_LENGTH_MAX=128
+
+    DEFAULTPARAM_N_EXPONENT=17
+    DEFAULTPARAM_R=6
+    DEFAULTPARAM_P=8
+    DEFAULTPARAM_FORMAT="hex"
+    DEFAULTPARAM_LENGTH=32
+
+    class UI_Signaller(QObject):
+        active_signal=pyqtSignal(object)
+
+        def __init__(self):
+            super(ScryptCalc.UI_Signaller,self).__init__(None)
+            return
+
+        def SEND_EVENT(self,input_type,input_data={}):
+            output_signal_info={"type":input_type,"data":input_data}
+            try:
+                self.active_signal.emit(output_signal_info)
+                return True
+            except:
+                return False
+
+    class Scrypt_Calculator(object):
+        def __init__(self,input_UI_signaller):
+            self.UI_signaller=input_UI_signaller
+            self.request_exit=threading.Event()
+            self.request_exit.clear()
+            self.has_quit=threading.Event()
+            self.has_quit.clear()
+            self.working_thread=threading.Thread(target=self.work_loop)
+            self.working_thread.daemon=True
+            self.lock_job=threading.Lock()
+            self.job=None
+            return
+
+        def START(self):
+            self.working_thread.start()
+            return
+
+        def REQUEST_STOP(self):
+            self.request_exit.set()
+            return
+
+        def IS_RUNNING(self):
+            return self.has_quit.is_set()==False
+
+        def CONCLUDE(self):
+            global PENDING_ACTIVITY_HEARTBEAT_SECONDS
+
+            while self.IS_RUNNING()==True:
+                time.sleep(ScryptCalc.PENDING_ACTIVITY_HEARTBEAT_SECONDS)
+            
+            self.working_thread.join()
+            return
+
+        def REQUEST_COMPUTE(self,input_value,input_salt,input_R,input_N,input_P,input_length):
+            self.lock_job.acquire()
+            if self.job is not None:
+                self.lock_job.release()
+                return False
+
+            self.job={"value":input_value,"salt":input_salt,"R":input_R,"N":input_N,"P":input_P,"length":input_length}
+            self.lock_job.release()
+            return True
+
+        def get_job(self):
+            job_data=None
+            self.lock_job.acquire()
+            if self.job is not None:
+                job_data=self.job
+                self.job=None
+            self.lock_job.release()
+            return job_data
+        
+        def complete_job(self,input_result,input_compute_time_ms):
+            self.UI_signaller.SEND_EVENT("compute_done",{"result":input_result,"compute_time_ms":input_compute_time_ms})
+            return
+
+        def work_loop(self):
+            while self.request_exit.is_set()==False:
+                time.sleep(ScryptCalc.PENDING_ACTIVITY_HEARTBEAT_SECONDS)
+                new_job=self.get_job()
+                if new_job is not None:
+                    start_time=GetTickCount64()
+                    result=hashlib.scrypt(maxmem=ScryptCalc.COMPUTE_MEMORY_MAX_BYTES,password=bytes(new_job["value"],"utf-8"),salt=bytes(new_job["salt"],"utf-8"),n=new_job["N"],r=new_job["R"],p=new_job["P"],dklen=new_job["length"])
+                    self.complete_job(result,GetTickCount64()-start_time)
+                    result=None
+                    del result
+
+            self.has_quit.set()
+            return
+
+    class UI(object):
+        qtmsg_blacklist_startswith=["WARNING: QApplication was not created in the main()","OleSetClipboard: Failed to set mime data (text/plain) on clipboard: COM error"]
+
+        class Main_Window(QMainWindow):
+            def __init__(self,input_is_ready,input_is_exiting,input_has_quit,input_signaller,input_scrypt_calculator,input_settings):
+                super(ScryptCalc.UI.Main_Window,self).__init__(None)
+
+                self.is_exiting=input_is_exiting
+                self.has_quit=input_has_quit
+                self.UI_signaller=input_signaller
+                self.UI_signaller.active_signal.connect(self.signal_response_handler)
+                self.scrypt_calculator=input_scrypt_calculator
+                self.param_N=-1
+                self.memory_used_ok=False
+                self.input_enabled=False
+                self.waiting_for_result=False
+
+                self.setWindowIcon(self.style().standardIcon(QStyle.SP_DialogSaveButton))
+
+                self.UI_scale=self.logicalDpiX()/96.0
+                self.signal_response_calls={"compute_done":self.receive_result}
+
+                self.font_arial=QFont("Arial")
+                self.font_arial.setPointSize(9)
+                self.font_consolas=QFont("Consolas")
+                self.font_consolas.setPointSize(10)
+
+                self.setFixedSize(400*self.UI_scale,400*self.UI_scale)
+                self.setWindowTitle(u"ScryptCalc")
+                self.setWindowFlags(self.windowFlags()|Qt.MSWindowsFixedSizeDialogHint)
+
+                self.label_input=QLabel(self)
+                self.label_input.setGeometry(10*self.UI_scale,5*self.UI_scale,100*self.UI_scale,26*self.UI_scale)
+                self.label_input.setText("Input:")
+                self.label_input.setFont(self.font_arial)
+
+                self.textbox_input=QLineEdit(self)
+                self.textbox_input.setGeometry(10*self.UI_scale,25*self.UI_scale,380*self.UI_scale,26*self.UI_scale)
+                self.textbox_input.setFont(self.font_consolas)
+                self.textbox_input.setMaxLength(ScryptCalc.PARAM_INPUT_MAX)
+
+                self.label_salt=QLabel(self)
+                self.label_salt.setGeometry(10*self.UI_scale,55*self.UI_scale,100*self.UI_scale,26*self.UI_scale)
+                self.label_salt.setText("Salt:")
+                self.label_salt.setFont(self.font_arial)
+
+                self.textbox_salt=QLineEdit(self)
+                self.textbox_salt.setGeometry(10*self.UI_scale,75*self.UI_scale,380*self.UI_scale,26*self.UI_scale)
+                self.textbox_salt.setFont(self.font_consolas)
+                self.textbox_salt.setMaxLength(ScryptCalc.PARAM_SALT_MAX)
+
+                self.label_N_exponent=QLabel(self)
+                self.label_N_exponent.setGeometry(10*self.UI_scale,115*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
+                self.label_N_exponent.setText("Rounds(N) exponent:")
+                self.label_N_exponent.setFont(self.font_arial)
+
+                self.label_N_total=QLabel(self)
+                self.label_N_total.setGeometry(240*self.UI_scale,115*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
+                self.label_N_total.setFont(self.font_arial)
+
+                self.label_memory_usage=QLabel(self)
+                self.label_memory_usage.setGeometry(240*self.UI_scale,140*self.UI_scale,200*self.UI_scale,26*self.UI_scale)
+                self.label_memory_usage.setFont(self.font_arial)
+
+                self.spinbox_N_exponent=QSpinBox(self)
+                self.spinbox_N_exponent.setGeometry(165*self.UI_scale,115*self.UI_scale,60*self.UI_scale,26*self.UI_scale)
+                self.spinbox_N_exponent.setRange(ScryptCalc.PARAM_N_EXPONENT_MIN,ScryptCalc.PARAM_N_EXPONENT_MAX)
+                self.spinbox_N_exponent.setFont(self.font_arial)
+                self.spinbox_N_exponent.setValue(ScryptCalc.DEFAULTPARAM_N_EXPONENT)
+
+                self.label_R=QLabel(self)
+                self.label_R.setGeometry(10*self.UI_scale,140*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
+                self.label_R.setText("Memory factor(R):")
+                self.label_R.setFont(self.font_arial)
+
+                self.spinbox_R=QSpinBox(self)
+                self.spinbox_R.setGeometry(165*self.UI_scale,140*self.UI_scale,60*self.UI_scale,26*self.UI_scale)
+                self.spinbox_R.setRange(ScryptCalc.PARAM_R_MIN,ScryptCalc.PARAM_R_MAX)
+                self.spinbox_R.setFont(self.font_arial)
+                self.spinbox_R.setValue(ScryptCalc.DEFAULTPARAM_R)
+
+                self.label_P=QLabel(self)
+                self.label_P.setGeometry(10*self.UI_scale,165*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
+                self.label_P.setFont(self.font_arial)
+                self.label_P.setText("Parallelization factor(P):")
+
+                self.spinbox_P=QSpinBox(self)
+                self.spinbox_P.setGeometry(165*self.UI_scale,165*self.UI_scale,60*self.UI_scale,26*self.UI_scale)
+                self.spinbox_P.setRange(ScryptCalc.PARAM_P_MIN,ScryptCalc.PARAM_P_MAX)
+                self.spinbox_P.setFont(self.font_arial)
+                self.spinbox_P.setValue(ScryptCalc.DEFAULTPARAM_P)
+
+                self.label_length=QLabel(self)
+                self.label_length.setGeometry(10*self.UI_scale,190*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
+                self.label_length.setText("Result length(bytes):")
+                self.label_length.setFont(self.font_arial)
+
+                self.spinbox_length=QSpinBox(self)
+                self.spinbox_length.setGeometry(165*self.UI_scale,190*self.UI_scale,60*self.UI_scale,26*self.UI_scale)
+                self.spinbox_length.setRange(1,128)
+                self.spinbox_length.setFont(self.font_arial)
+                self.spinbox_length.setValue(ScryptCalc.DEFAULTPARAM_LENGTH)
+
+                self.button_compute=QPushButton(self)
+                self.button_compute.setGeometry(160*self.UI_scale,225*self.UI_scale,90*self.UI_scale,26*self.UI_scale)
+                self.button_compute.setText("Compute")
+                self.button_compute.setFont(self.font_arial)
+
+                self.label_result_info=QLabel(self)
+                self.label_result_info.setGeometry(90*self.UI_scale,250*self.UI_scale,240*self.UI_scale,26*self.UI_scale)
+                self.label_result_info.setText("Result:")
+                self.label_result_info.setFont(self.font_arial)
+
+                self.textbox_result=QTextEdit(self)
+                self.textbox_result.setReadOnly(True)
+                self.textbox_result.setGeometry(10*self.UI_scale,275*self.UI_scale,380*self.UI_scale,110*self.UI_scale)
+                self.textbox_result.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+                self.textbox_result.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+                self.textbox_result.verticalScrollBar().setStyleSheet(f"QScrollBar:vertical {chr(123)}border:{str(int(1*self.UI_scale))}px; width:{str(int(15*self.UI_scale))}px solid;{chr(125)}")
+                self.textbox_result.setFont(self.font_consolas)
+                self.textbox_result.setWordWrapMode(QTextOption.WrapAtWordBoundaryOrAnywhere)
+
+                self.result_bytes=bytes()
+
+                self.label_result_format=QLabel(self)
+                self.label_result_format.setGeometry(300*self.UI_scale,200*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
+                self.label_result_format.setText("Result format:")
+                self.label_result_format.setFont(self.font_arial)
+
+                self.combobox_result_format=QComboBox(self)
+                self.combobox_result_format.setGeometry(290*self.UI_scale,225*self.UI_scale,100*self.UI_scale,26*self.UI_scale)
+                self.combobox_result_format.setFont(self.font_arial)
+                self.combobox_result_format.addItem("bin")
+                self.combobox_result_format.addItem("hex")
+                self.combobox_result_format.addItem("base32")
+                self.combobox_result_format.addItem("base64")
+                self.combobox_result_format.addItem("base85")
+                format_index=self.combobox_result_format.findText(ScryptCalc.DEFAULTPARAM_FORMAT)
+                self.combobox_result_format.setCurrentIndex(format_index)
+
+                if input_settings is not None:
+                    if input_settings["format"] is not None:
+                        format_index=self.combobox_result_format.findText(input_settings["format"])
+                        self.combobox_result_format.setCurrentIndex(format_index)
+                    if input_settings["salt"] is not None:
+                        self.textbox_salt.setText(input_settings["salt"])
+                    if input_settings["N_exp"] is not None:
+                        self.spinbox_N_exponent.setValue(input_settings["N_exp"])
+                    if input_settings["P"] is not None:
+                        self.spinbox_P.setValue(input_settings["P"])
+                    if input_settings["R"] is not None:
+                        self.spinbox_R.setValue(input_settings["R"])
+                    if input_settings["length"] is not None:
+                        self.spinbox_length.setValue(input_settings["length"])
+
+                self.textbox_input.textChanged.connect(self.textbox_input_onchange)
+                self.textbox_salt.textChanged.connect(self.textbox_salt_onchange)
+                self.spinbox_N_exponent.valueChanged.connect(self.spinbox_N_exponent_onchange)
+                self.spinbox_R.valueChanged.connect(self.spinbox_R_onchange)
+                self.combobox_result_format.currentIndexChanged.connect(self.combobox_result_format_onindexchanged)
+                self.button_compute.clicked.connect(self.button_compute_onclick)
+
+                self.update_N_param()
+                self.update_memory_usage()
+                self.set_input_enabled(True)
+
+                input_is_ready.set()
+                return
+
+            def textbox_input_onchange(self):
+                initial_cursor_pos=self.textbox_input.cursorPosition()
+                initial_text=str(self.textbox_input.text())
+                initial_text_len=len(initial_text)
+                final_text=initial_text.replace(" ","")
+                final_text_len=len(final_text)
+                self.textbox_input.setText(final_text)
+                new_cursor_pos=max(min(initial_cursor_pos-(initial_text_len-final_text_len),final_text_len),0)
+                self.textbox_input.setCursorPosition(new_cursor_pos)
+                initial_text=ScryptCalc.PURGE_VALUE
+                final_text=ScryptCalc.PURGE_VALUE
+                initial_text_len=-1
+                final_text_len=-1
+                return
+
+            def textbox_salt_onchange(self):
+                initial_cursor_pos=self.textbox_salt.cursorPosition()
+                initial_text=str(self.textbox_salt.text())
+                initial_text_len=len(initial_text)
+                final_text=initial_text.replace(" ","")
+                final_text_len=len(final_text)
+                self.textbox_salt.setText(final_text)
+                new_cursor_pos=max(min(initial_cursor_pos-(initial_text_len-final_text_len),final_text_len),0)
+                self.textbox_salt.setCursorPosition(new_cursor_pos)
+                initial_text=ScryptCalc.PURGE_VALUE
+                final_text=ScryptCalc.PURGE_VALUE
+                initial_text_len=-1
+                final_text_len=-1
+                return
+
+            def combobox_result_format_onindexchanged(self):
+                self.display_result()
+                return
+
+            def set_input_enabled(self,input_state):
+                if input_state!=self.input_enabled:
+                    self.input_enabled=input_state
+                    self.textbox_result.setEnabled(input_state)
+                    self.textbox_input.setEnabled(input_state)
+                    self.textbox_salt.setEnabled(input_state)
+                    self.spinbox_length.setEnabled(input_state)
+                    self.spinbox_N_exponent.setEnabled(input_state)
+                    self.spinbox_R.setEnabled(input_state)
+                    self.spinbox_P.setEnabled(input_state)
+                    self.combobox_result_format.setEnabled(input_state)
+                    self.update_compute_button_state()
+                return
+
+            def update_compute_button_state(self):
+                self.button_compute.setEnabled(self.input_enabled and self.memory_used_ok)
+                return
+
+            @staticmethod
+            def readable_size(input_size):
+                if input_size<1024:
+                    return str(input_size)+" Bytes"
+                if input_size<1024**2:
+                    return str(round(input_size/1024.0,2))+" KB"
+                if input_size<1024**3:
+                    return str(round(input_size/1024.0**2,2))+" MB"
+                return str(round(input_size/1024.0**3,2))+" GB"
+
+            def update_memory_usage(self):
+                memory_used=self.param_N*self.spinbox_R.value()*128
+                if memory_used>ScryptCalc.COMPUTE_MEMORY_MAX_BYTES:
+                    self.label_memory_usage.setText(f"Est. memory > {ScryptCalc.UI.Main_Window.readable_size(ScryptCalc.COMPUTE_MEMORY_MAX_BYTES)} limit!")
+                    self.label_memory_usage.setStyleSheet("font-weight: bold")
+                    self.memory_used_ok=False
+                else:
+                    self.label_memory_usage.setText(f"Est. memory: {ScryptCalc.UI.Main_Window.readable_size(memory_used)}")
+                    self.label_memory_usage.setStyleSheet("")
+                    self.memory_used_ok=True
+                self.update_compute_button_state()
+                return
+
+            def update_N_param(self):
+                n_exp=self.spinbox_N_exponent.value()
+                self.param_N=2**n_exp
+                self.label_N_total.setText(f"Total rounds: {self.param_N}")
+                if n_exp>=16:
+                    self.spinbox_R.setRange(2,ScryptCalc.PARAM_R_MAX)
+                elif ScryptCalc.PARAM_R_MIN<2:
+                    self.spinbox_R.setRange(ScryptCalc.PARAM_R_MIN,ScryptCalc.PARAM_R_MAX)
+                return
+
+            def spinbox_R_onchange(self):
+                self.update_memory_usage()
+                return
+
+            def spinbox_N_exponent_onchange(self):
+                self.update_N_param()
+                self.update_memory_usage()
+                return
+
+            def button_compute_onclick(self):
+                self.set_input_enabled(False)
+                self.waiting_for_result=True
+                self.label_result_info.setText("Computing result...")
+                self.textbox_result.setText("")
+                self.scrypt_calculator.REQUEST_COMPUTE(self.textbox_input.text(),self.textbox_salt.text(),self.spinbox_R.value(),self.param_N,self.spinbox_P.value(),self.spinbox_length.value())
+                return
+
+            def signal_response_handler(self,event):
+                if self.is_exiting.is_set()==True:
+                    event=ScryptCalc.PURGE_VALUE
+                    return
+
+                event_type=event["type"]
+                if event_type in self.signal_response_calls:
+                    self.signal_response_calls[event_type](event["data"])
+
+                return
+
+            def closeEvent(self,event):
+                if self.is_exiting.is_set()==True or self.waiting_for_result==True:
+                    event.ignore()
+                    return
+
+                self.is_exiting.set()
+                self.result_bytes=ScryptCalc.PURGE_VALUE
+                self.textbox_result.setText(ScryptCalc.PURGE_VALUE)
+                self.textbox_input.setText(ScryptCalc.PURGE_VALUE)
+                self.textbox_salt.setText(ScryptCalc.PURGE_VALUE)
+                self.has_quit.set()
+                return
+
+            def receive_result(self,result_data):
+                self.set_input_enabled(True)
+                self.waiting_for_result=False
+                self.result_bytes=result_data["result"]
+                self.label_result_info.setText(f"Result took {round(result_data['compute_time_ms']/1000.0,3)} second(s):")
+                self.display_result()
+
+            def display_result(self):
+                result_format=self.combobox_result_format.itemText(self.combobox_result_format.currentIndex())
+                text_value=""
+
+                if result_format=="bin" and len(self.result_bytes)>0:
+                    text_value="{:08b}".format(int(self.result_bytes.hex(),16))
+                elif result_format=="hex":
+                    text_value=self.result_bytes.hex()
+                elif result_format=="base32":
+                    text_value=base64.b32encode(self.result_bytes).decode("utf-8")
+                elif result_format=="base64":
+                    text_value=base64.b64encode(self.result_bytes).decode("utf-8")
+                elif result_format=="base85":
+                    text_value=base64.b85encode(self.result_bytes).decode("utf-8")
+
+                self.textbox_result.setText(text_value)
+                text_value=ScryptCalc.PURGE_VALUE
+                return
+
+        def __init__(self,input_signaller,input_scrypt_calculator,input_settings=None):
+            qInstallMessageHandler(self.qtmsg_handler)
+            self.is_ready=threading.Event()
+            self.is_ready.clear()
+            self.is_exiting=threading.Event()
+            self.is_exiting.clear()
+            self.has_quit=threading.Event()
+            self.has_quit.clear()
+            self.UI_signaller=input_signaller
+            self.scrypt_calculator=input_scrypt_calculator
+            self.startup_settings=input_settings
+            self.working_thread=threading.Thread(target=self.run_UI)
+            self.working_thread.daemon=True
+            self.working_thread.start()
+            return
+
+        def __del__(self):
+            qInstallMessageHandler(None)
+            return
+
+        @staticmethod
+        def qtmsg_handler(msg_type,msg_log_context,msg_string):
+            for entry in ScryptCalc.UI.qtmsg_blacklist_startswith:
+                if msg_string.startswith(entry):
+                    return
+
+            sys.stderr.write(msg_string+u"\n")
+            return
+
+        def run_UI(self):
+            self.UI_app=QApplication([])
+            self.UI_app.setStyle("fusion")
+            self.UI_window=ScryptCalc.UI.Main_Window(self.is_ready,self.is_exiting,self.has_quit,self.UI_signaller,self.scrypt_calculator,self.startup_settings)
+            self.UI_window.show()
+            self.UI_app.aboutToQuit.connect(self.UI_app.deleteLater)
+            self.UI_window.raise_()
+            self.UI_window.activateWindow()
+            
+            sys.exit(self.UI_app.exec_())
+            
+            del self.UI_window
+            del self.UI_app
+            return
+
+        def IS_RUNNING(self):
+            return self.has_quit.is_set()==False
+
+        def IS_READY(self):
+            return self.is_ready.is_set()==True
+
+        def CONCLUDE(self):
+            self.working_thread.join()
+            return
+
+    @staticmethod
+    def sanitize_settings_string(input_string):
+        collected_settings={}
+
+        if input_string is not None:
+            try:
+                settings_lines=[line.strip() for line in input_string.split("\n") if line.strip()]
+            except:
+                settings_lines=[input_string]
+
+            for line in settings_lines:
+                separator_pos=line.find("=")
+                if separator_pos>-1:
+                    key=line[:separator_pos].lower().strip()
+                    value=line[separator_pos+1:].strip()
+                    if key in ["format","salt","nexp","p","r","length"]:
+                        if key=="nexp":
+                            key="N_exp"
+                        if key in ["p", "r"]:
+                            key=key.upper()
+
+                        valid_value=True
+
+                        if len(value)>0 and len(value)<=ScryptCalc.PARAM_SALT_MAX:
+                            if key in ["N_exp","P","R","length"]:
+                                try:
+                                    value=int(value)
+                                except:
+                                    valid_value=False
+
+                                if valid_value==True:
+                                    if key=="N_exp" and (value<ScryptCalc.PARAM_N_EXPONENT_MIN or value>ScryptCalc.PARAM_N_EXPONENT_MAX):
+                                        valid_value=False 
+                                    elif key=="P" and (value<ScryptCalc.PARAM_P_MIN or value>ScryptCalc.PARAM_P_MAX):
+                                        valid_value=False 
+                                    elif key=="R" and (value<ScryptCalc.PARAM_R_MIN or value>ScryptCalc.PARAM_R_MAX):
+                                        valid_value=False 
+                                    elif key=="length" and (value<1 or value>ScryptCalc.PARAM_LENGTH_MAX):
+                                        valid_value=False 
+
+                            else:
+                                if key=="salt" and " " in value:
+                                    valid_value=False
+                                elif key=="format":
+                                    value=value.lower()
+                                    if value not in ["hex","bin","base16","base32","base64","base85"]:
+                                        valid_value=False
+                        else:
+                            valid_value=False
+
+                        if valid_value==True:
+                            collected_settings[key]=value
+                            if set(["format","salt","N_exp","P","R"])==set(collected_settings.keys()):
+                                break
+
+        for key in ["format","salt","N_exp","P","R","length"]:
+            if key not in collected_settings:
+                collected_settings[key]=None
+
+        return collected_settings
+
+    def __init__(self,input_startup_settings_string=None):
+        self.startup_settings=ScryptCalc.sanitize_settings_string(input_startup_settings_string)
+        return
+
+    def flush_std_buffers(self):
+        sys.stdout.flush()
+        sys.stderr.flush()
+        return
+
+    def RUN(self):
+        if threading.current_thread().__class__.__name__!="_MainThread":
+            raise Exception("ScryptCalc needs to be run from the main thread.")
+
+        UI_Signal=ScryptCalc.UI_Signaller()
+        Scrypt_Calculator=ScryptCalc.Scrypt_Calculator(UI_Signal)
+        self.Active_UI=ScryptCalc.UI(UI_Signal,Scrypt_Calculator,self.startup_settings)
+        
+        while self.Active_UI.IS_READY()==False:
+            time.sleep(ScryptCalc.PENDING_ACTIVITY_HEARTBEAT_SECONDS)
+
+        Scrypt_Calculator.START()
+
+        self.main_loop()
+        
+        Scrypt_Calculator.REQUEST_STOP()
+        Scrypt_Calculator.CONCLUDE()
+        
+        del self.Active_UI
+        del Scrypt_Calculator
+        del UI_Signal
+        return
+
+    def main_loop(self):
+        while self.Active_UI.IS_RUNNING()==True:
+            time.sleep(ScryptCalc.MAINTHREAD_HEARTBEAT_SECONDS)
+
+            self.flush_std_buffers()
+        return
+
+if Versions_Str_Equal_Or_Less(PYQT5_MAX_SUPPORTED_COMPILE_VERSION,PYQT_VERSION_STR)==False:
+    sys.stderr.write(u"WARNING: PyQt5 version("+PYQT_VERSION_STR+u") is higher than the maximum supported version for compiling("+PYQT5_MAX_SUPPORTED_COMPILE_VERSION+u"). The application may run off source code but will fail to compile.\n")
+    sys.stderr.flush()
+
+config_file_path=os.path.join(os.path.realpath(os.path.dirname(sys.executable)),"config.txt")
+
+try:
+    with open(config_file_path,"r") as file_handle:
+        file_handle.seek(0,2)
+        file_size=file_handle.tell()
+        file_handle.seek(0,0)
+        if file_size<=1024:
+            config_string=file_handle.read()
+        else:
+            config_string=None
+        config_string=str(config_string)
+except:
+    config_string=None
+
+ScryptCalcInstance=ScryptCalc(config_string)
+ScryptCalcInstance.RUN()
+del ScryptCalcInstance
