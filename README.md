@@ -6,7 +6,7 @@ The UI provides the ability to set Scrypt's N^2, P, and R parameters, as well as
 
 Supported output formats are: bin, hex, base32, base64, and base85.
 
-When it comes to the Scrypt parameter N, the UI setting represents the exponent of the actual number of computations, by the formula N = exp^2. So for example, setting an exponent of 10 will translate into a Scrypt N = 1024. This allows for using smaller numbers in the UI that need to be increased by less in order to keep up with the computational increase.
+When it comes to the Scrypt parameter N, the UI setting represents the exponent of the actual number of rounds, by the formula N = exp^2. So for example, setting an exponent of 10 will translate into a Scrypt N = 1024. This allows for using smaller numbers in the UI that need to be increased by less in order to keep up with the computational increase.
 
 The memory estimate for computation based on the selected parameters is displayed in the UI.
 
