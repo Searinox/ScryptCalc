@@ -1,6 +1,6 @@
 # ScryptCalc - Portable Scrypt KDF application
 
-ScryptCalc is a UI frontend that uses hashlib's scrypt implementation.
+ScryptCalc is a PyQt 5 UI frontend that uses hashlib's scrypt implementation.
 
 The UI provides the ability to set Scrypt's N^2, P, and R parameters, as well as the output length in bytes and the output format.
 
