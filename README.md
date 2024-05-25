@@ -24,4 +24,4 @@ format=hex
 clear=1
 ```
 
-The values provided will be automatically populated in the UI on application start.
+The values provided will be automatically populated in the UI on application start. Clear can take 1/true/yes or 0/false/no as values.
