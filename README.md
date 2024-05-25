@@ -10,6 +10,8 @@ When it comes to the Scrypt parameter N, the UI setting represents the exponent 
 
 The memory estimate for computation based on the selected parameters is displayed in the UI.
 
+It is also possible to clear the password field as soon as computation begins if the option is checked.
+
 In addition, a file named "config.txt" can be placed in the application folder containing saved parameters in this example format:
 
 ```
@@ -19,6 +21,7 @@ p=2
 length=30
 salt=myUniqueSalt3056740568309530
 format=hex
+clear=1
 ```
 
 The values provided will be automatically populated in the UI on application start.
