@@ -119,6 +119,7 @@ class ScryptCalc(object):
         
         def complete_job(self,input_result,input_compute_time_ms):
             self.UI_signaller.SEND_EVENT("compute_done",{"result":input_result,"compute_time_ms":input_compute_time_ms})
+            input_result=None
             return
 
         def work_loop(self):
@@ -166,7 +167,7 @@ class ScryptCalc(object):
                 self.font_consolas.setPointSize(round(10*self.UI_scale))
 
                 self.setFixedSize(400*self.UI_scale,430*self.UI_scale)
-                self.setWindowTitle(u"ScryptCalc")
+                self.setWindowTitle("ScryptCalc")
                 self.setWindowFlags(self.windowFlags()|Qt.MSWindowsFixedSizeDialogHint)
 
                 self.label_input=QLabel(self)
@@ -325,9 +326,11 @@ class ScryptCalc(object):
                 self.textbox_input.setCursorPosition(new_cursor_pos)
                 initial_text_len=-1
                 initial_text=ScryptCalc.PURGE_VALUE
+                del initial_text
                 initial_text=None
                 final_text_len=-1
                 final_text=ScryptCalc.PURGE_VALUE
+                del final_text
                 final_text=None
                 return
 
@@ -342,9 +345,11 @@ class ScryptCalc(object):
                 self.textbox_salt.setCursorPosition(new_cursor_pos)
                 initial_text_len=-1
                 initial_text=ScryptCalc.PURGE_VALUE
+                del initial_text
                 initial_text=None
                 final_text_len=-1
                 final_text=ScryptCalc.PURGE_VALUE
+                del final_text
                 final_text=None
                 return
 
@@ -374,12 +379,12 @@ class ScryptCalc(object):
             @staticmethod
             def readable_size(input_size):
                 if input_size<1024:
-                    return str(input_size)+" Bytes"
+                    return f"{str(input_size)} Bytes"
                 if input_size<1024**2:
-                    return str(round(input_size/1024.0,2))+" KB"
+                    return f"{str(round(input_size/1024.0,2))} KB"
                 if input_size<1024**3:
-                    return str(round(input_size/1024.0**2,2))+" MB"
-                return str(round(input_size/1024.0**3,2))+" GB"
+                    return f"{str(round(input_size/1024.0**2,2))} MB"
+                return f"{str(round(input_size/1024.0**3,2))} GB"
 
             def update_memory_usage(self):
                 memory_used=self.param_N*self.spinbox_R.value()*128
@@ -426,13 +431,17 @@ class ScryptCalc(object):
 
             def signal_response_handler(self,event):
                 if self.is_exiting.is_set()==True:
-                    event=ScryptCalc.PURGE_VALUE
-                    event=None
+                    event["data"]=ScryptCalc.PURGE_VALUE_RESULT
+                    del event["data"]
+                    event["data"]=None
                     return
 
                 event_type=event["type"]
                 if event_type in self.signal_response_calls:
                     self.signal_response_calls[event_type](event["data"])
+                    event["data"]=ScryptCalc.PURGE_VALUE_RESULT
+                    del event["data"]
+                    event["data"]=None
 
                 return
 
@@ -443,8 +452,7 @@ class ScryptCalc(object):
 
                 self.is_exiting.set()
                 
-                self.result_bytes=ScryptCalc.PURGE_VALUE
-                self.result_bytes=None
+                self.purge_result_bytes()
                 self.purge_result_field()
                 ScryptCalc.UI.Main_Window.purge_textbox_data(self.textbox_input)
                 ScryptCalc.UI.Main_Window.purge_textbox_data(self.textbox_salt)
@@ -454,11 +462,14 @@ class ScryptCalc(object):
             def receive_result(self,result_data):
                 self.set_input_enabled(True)
                 self.waiting_for_result=False
+                self.purge_result_bytes()
                 self.result_bytes=result_data["result"]
                 result_data["result"]=ScryptCalc.PURGE_VALUE
+                del result_data["result"]
                 result_data["result"]=None
                 self.label_result_info.setText(f"Result took {round(result_data['compute_time_ms']/1000.0,3)} second(s):")
                 self.display_result()
+                return
 
             def display_result(self):
                 result_format=self.combobox_result_format.itemText(self.combobox_result_format.currentIndex())
@@ -479,6 +490,12 @@ class ScryptCalc(object):
                 text_value=ScryptCalc.PURGE_VALUE_RESULT
                 text_value=None
                 gc.collect()
+                return
+
+            def purge_result_bytes(self):
+                self.result_bytes=ScryptCalc.PURGE_VALUE
+                del self.result_bytes
+                self.result_bytes=None
                 return
 
             def purge_result_field(self):
@@ -526,7 +543,7 @@ class ScryptCalc(object):
                 if msg_string.startswith(entry):
                     return
 
-            sys.stderr.write(msg_string+u"\n")
+            sys.stderr.write(f"{msg_string}\n")
             return
 
         def run_UI(self):
@@ -541,7 +558,9 @@ class ScryptCalc(object):
             sys.exit(self.UI_app.exec_())
             
             del self.UI_window
+            self.UI_window=None
             del self.UI_app
+            self.UI_app=None
             return
 
         def IS_RUNNING(self):
@@ -667,7 +686,7 @@ class ScryptCalc(object):
         return
 
 if Versions_Str_Equal_Or_Less(PYQT5_MAX_SUPPORTED_COMPILE_VERSION,PYQT_VERSION_STR)==False:
-    sys.stderr.write(u"WARNING: PyQt5 version("+PYQT_VERSION_STR+u") is higher than the maximum supported version for compiling("+PYQT5_MAX_SUPPORTED_COMPILE_VERSION+u"). The application may run off source code but will fail to compile.\n")
+    sys.stderr.write(f"WARNING: PyQt5 version({PYQT_VERSION_STR}) is higher than the maximum supported version for compiling({PYQT5_MAX_SUPPORTED_COMPILE_VERSION}). The application may run off source code but will fail to compile.\n")
     sys.stderr.flush()
 
 gc.enable()
@@ -679,7 +698,7 @@ try:
         file_handle.seek(0,2)
         file_size=file_handle.tell()
         file_handle.seek(0,0)
-        if file_size<=1024:
+        if file_size<=768:
             config_string=file_handle.read()
         else:
             config_string=None
