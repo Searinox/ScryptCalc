@@ -12,6 +12,8 @@ The memory estimate for computation based on the selected parameters is displaye
 
 It is also possible to clear the password field as soon as computation begins if the option is checked.
 
+The application will flash the taskbar when it is done computing, so it can be tabbed away from or minimized while waiting for the result.
+
 In addition, a file named "config.txt" can be placed in the application folder containing saved parameters in this example format:
 
 ```
