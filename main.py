@@ -29,7 +29,7 @@ class ScryptCalc(object):
     MAINTHREAD_HEARTBEAT_SECONDS=0.1
     PENDING_ACTIVITY_HEARTBEAT_SECONDS=0.1
 
-    COMPUTE_MEMORY_MAX_BYTES=2147483647
+    COMPUTE_MEMORY_MAX_BYTES=1024**3*2-1
 
     PARAM_INPUT_MAX=192
     PARAM_SALT_MAX=192
@@ -128,13 +128,31 @@ class ScryptCalc(object):
                 new_job=self.get_job()
                 if new_job is not None:
                     start_time=GetTickCount64()
-                    result=hashlib.scrypt(maxmem=ScryptCalc.COMPUTE_MEMORY_MAX_BYTES,password=bytes(new_job["value"],"utf-8"),salt=bytes(new_job["salt"],"utf-8"),n=new_job["N"],r=new_job["R"],p=new_job["P"],dklen=new_job["length"])
+                    value_bytes=bytes(new_job["value"],"utf-8")
                     new_job["value"]=ScryptCalc.PURGE_VALUE
+                    del new_job["value"]
                     new_job["value"]=None
+                    salt_bytes=bytes(new_job["salt"],"utf-8")
+                    new_job["salt"]=ScryptCalc.PURGE_VALUE
+                    del new_job["salt"]
+                    new_job["salt"]=None
+                    result=hashlib.scrypt(maxmem=ScryptCalc.COMPUTE_MEMORY_MAX_BYTES,password=value_bytes,salt=salt_bytes,n=new_job["N"],r=new_job["R"],p=new_job["P"],dklen=new_job["length"])
+                    value_bytes=bytes(ScryptCalc.PURGE_VALUE,"utf-8")
+                    del value_bytes
+                    value_bytes=None
+                    salt_bytes=bytes(ScryptCalc.PURGE_VALUE,"utf-8")
+                    del salt_bytes
+                    salt_bytes=None
+                    new_job["N"]=1
+                    new_job["R"]=1
+                    new_job["P"]=1
+                    new_job["length"]=1
+                    del new_job
+                    new_job={}
                     self.complete_job(result,GetTickCount64()-start_time)
                     result=ScryptCalc.PURGE_VALUE
-                    result=None
                     del result
+                    result=None
 
             self.has_quit.set()
             return
@@ -143,9 +161,10 @@ class ScryptCalc(object):
         qtmsg_blacklist_startswith=["WARNING: QApplication was not created in the main()","OleSetClipboard: Failed to set mime data (text/plain) on clipboard: COM error"]
 
         class Main_Window(QMainWindow):
-            def __init__(self,input_is_ready,input_is_exiting,input_has_quit,input_signaller,input_scrypt_calculator,input_settings):
+            def __init__(self,input_parent_app,input_is_ready,input_is_exiting,input_has_quit,input_signaller,input_scrypt_calculator,input_settings):
                 super(ScryptCalc.UI.Main_Window,self).__init__(None)
 
+                self.parent_app=input_parent_app
                 self.is_exiting=input_is_exiting
                 self.has_quit=input_has_quit
                 self.UI_signaller=input_signaller
@@ -280,7 +299,7 @@ class ScryptCalc(object):
                 self.textedit_result.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
                 self.textedit_result.verticalScrollBar().setStyleSheet(f"QScrollBar:vertical {chr(123)}border:{str(round(1*self.UI_scale))}px; width:{str(round(15*self.UI_scale))}px solid;{chr(125)}")
                 self.textedit_result.setFont(self.font_consolas)
-                self.textedit_result.setWordWrapMode(QTextOption.WrapAtWordBoundaryOrAnywhere)
+                self.textedit_result.setWordWrapMode(QTextOption.WrapAnywhere)
 
                 self.result_bytes=bytes()
 
@@ -288,19 +307,43 @@ class ScryptCalc(object):
                     if input_settings["format"] is not None:
                         format_index=self.combobox_result_format.findText(input_settings["format"])
                         self.combobox_result_format.setCurrentIndex(format_index)
+                        input_settings["format"]=ScryptCalc.PURGE_VALUE
+                        del input_settings["format"]
+                        input_settings["format"]=None
                     if input_settings["salt"] is not None:
                         self.textbox_salt.setText(input_settings["salt"])
+                        input_settings["salt"]=ScryptCalc.PURGE_VALUE
+                        del input_settings["salt"]
+                        input_settings["salt"]=None
                     if input_settings["N_exp"] is not None:
                         self.spinbox_N_exponent.setValue(input_settings["N_exp"])
+                        input_settings["N_exp"]=1
+                        del input_settings["N_exp"]
+                        input_settings["N_exp"]=None
                     if input_settings["P"] is not None:
                         self.spinbox_P.setValue(input_settings["P"])
+                        input_settings["P"]=1
+                        del input_settings["P"]
+                        input_settings["P"]=None
                     if input_settings["R"] is not None:
                         self.spinbox_R.setValue(input_settings["R"])
+                        input_settings["R"]=1
+                        del input_settings["R"]
+                        input_settings["R"]=None
                     if input_settings["length"] is not None:
                         self.spinbox_length.setValue(input_settings["length"])
+                        input_settings["length"]=1
+                        del input_settings["length"]
+                        input_settings["length"]=None
                     if input_settings["clear"] is not None:
                         self.checkbox_clear_password_asap.setChecked(input_settings["clear"])
-
+                        input_settings["clear"]=False
+                        del input_settings["clear"]
+                        input_settings["clear"]=None
+                        
+                    del input_settings
+                    input_settings={}
+                
                 self.textbox_input.textChanged.connect(self.textbox_input_onchange)
                 self.textbox_salt.textChanged.connect(self.textbox_salt_onchange)
                 self.spinbox_N_exponent.valueChanged.connect(self.spinbox_N_exponent_onchange)
@@ -311,7 +354,8 @@ class ScryptCalc(object):
                 self.update_N_param()
                 self.update_memory_usage()
                 self.set_input_enabled(True)
-
+                
+                gc.collect()
                 input_is_ready.set()
                 return
 
@@ -456,6 +500,11 @@ class ScryptCalc(object):
                 self.purge_result_field()
                 ScryptCalc.UI.Main_Window.purge_textbox_data(self.textbox_input)
                 ScryptCalc.UI.Main_Window.purge_textbox_data(self.textbox_salt)
+                self.spinbox_N_exponent.setValue(1)
+                self.spinbox_R.setValue(1)
+                self.spinbox_P.setValue(1)
+                self.spinbox_length.setValue(1)
+                self.combobox_result_format.setCurrentIndex(1)
                 self.has_quit.set()
                 return
 
@@ -469,6 +518,7 @@ class ScryptCalc(object):
                 result_data["result"]=None
                 self.label_result_info.setText(f"Result took {round(result_data['compute_time_ms']/1000.0,3)} second(s):")
                 self.display_result()
+                self.parent_app.alert(self)
                 return
 
             def display_result(self):
@@ -488,6 +538,7 @@ class ScryptCalc(object):
 
                 self.textedit_result.setText(text_value)
                 text_value=ScryptCalc.PURGE_VALUE_RESULT
+                del text_value
                 text_value=None
                 gc.collect()
                 return
@@ -496,6 +547,8 @@ class ScryptCalc(object):
                 self.result_bytes=ScryptCalc.PURGE_VALUE
                 del self.result_bytes
                 self.result_bytes=None
+                self.result_bytes=bytes()
+                gc.collect()
                 return
 
             def purge_result_field(self):
@@ -531,6 +584,9 @@ class ScryptCalc(object):
             self.working_thread=threading.Thread(target=self.run_UI)
             self.working_thread.daemon=True
             self.working_thread.start()
+            input_settings=ScryptCalc.PURGE_VALUE_RESULT
+            del input_settings
+            input_settings=None
             return
 
         def __del__(self):
@@ -549,11 +605,14 @@ class ScryptCalc(object):
         def run_UI(self):
             self.UI_app=QApplication([])
             self.UI_app.setStyle("fusion")
-            self.UI_window=ScryptCalc.UI.Main_Window(self.is_ready,self.is_exiting,self.has_quit,self.UI_signaller,self.scrypt_calculator,self.startup_settings)
+            self.UI_window=ScryptCalc.UI.Main_Window(self.UI_app,self.is_ready,self.is_exiting,self.has_quit,self.UI_signaller,self.scrypt_calculator,self.startup_settings)
             self.UI_window.show()
             self.UI_app.aboutToQuit.connect(self.UI_app.deleteLater)
             self.UI_window.raise_()
             self.UI_window.activateWindow()
+            self.startup_settings=ScryptCalc.PURGE_VALUE_RESULT
+            del self.startup_settings
+            self.startup_settings=None
             
             sys.exit(self.UI_app.exec_())
             
@@ -635,10 +694,26 @@ class ScryptCalc(object):
                             collected_settings[key]=value
                             if set(["format","salt","N_exp","P","R","clear"])==set(collected_settings.keys()):
                                 break
-
+            
+                    key=ScryptCalc.PURGE_VALUE_RESULT
+                    del key
+                    key=None
+                    value=ScryptCalc.PURGE_VALUE_RESULT
+                    del value
+                    value=None
+            
+            while len(settings_lines)>0:
+                settings_lines[-1]=ScryptCalc.PURGE_VALUE_RESULT
+                settings_lines[-1]=None
+                del settings_lines[-1]
+                
         for key in ["format","salt","N_exp","P","R","length","clear"]:
             if key not in collected_settings:
                 collected_settings[key]=None
+
+        input_string=ScryptCalc.PURGE_VALUE_RESULT
+        del input_string
+        input_string=None
 
         return collected_settings
 
@@ -707,6 +782,9 @@ except:
     config_string=None
 
 ScryptCalcInstance=ScryptCalc(config_string)
+config_string=ScryptCalc.PURGE_VALUE_RESULT
+del config_string
+config_string=None
 ScryptCalcInstance.RUN()
 del ScryptCalcInstance
 ScryptCalcInstance=None
