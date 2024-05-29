@@ -374,6 +374,7 @@ class ScryptCalc(object):
                     self.setUpdatesEnabled(False)
                     self.textedit_result.hide()
                     self.textedit_result.setPlainText(ScryptCalc.PURGE_VALUE_RESULT)
+                    self.textedit_result.setDocument(None)
                     self.textedit_result.setParent(None)
                     del self.textedit_result
                     self.textedit_result=None
