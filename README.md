@@ -2,7 +2,7 @@
 
 ScryptCalc is a PyQt 5 UI frontend that uses hashlib's Scrypt implementation.
 
-Some attempts have been made to clear secret info from the application's memory as soon as they're no longer needed there as well as on application close, but with Python being unmanaged and Qt as well underlying variable management implementations not being set in stone, no guarantees can be given. Memory dumps do not find previous passwords once they've been erased but recent computed outputs are frequently found. However, the leftover outputs only seem to appear once or twice at most, and the history doesn't run long.
+Some attempts have been made to clear secret info from the application's memory as soon as they're no longer needed there as well as on application close, but with Python being unmanaged and Qt as well underlying variable management implementations not being set in stone, no guarantees can be given. Memory dumps can contain recent input and resulting passwords.
 
 The UI provides the ability to set Scrypt's N^2, P, and R parameters, as well as the output length in bytes and the output format.
 
