@@ -1,5 +1,5 @@
 import base64,ctypes,gc,os,sys,time,threading,hashlib
-from PyQt5.QtCore import (PYQT_VERSION_STR,Qt,QObject,QCoreApplication,pyqtSignal,qInstallMessageHandler)
+from PyQt5.QtCore import (PYQT_VERSION_STR,Qt,QObject,QCoreApplication,pyqtSignal,qInstallMessageHandler,QTimer)
 from PyQt5.QtWidgets import (QStyle,QApplication,QLabel,QLineEdit,QMainWindow,QPushButton,QSpinBox,QPlainTextEdit,QComboBox,QCheckBox)
 from PyQt5.QtGui import (QFont,QTextOption,QTextCursor)
 
@@ -114,8 +114,11 @@ class ScryptCalc(object):
             self.lock_job.acquire()
             if self.job is not None:
                 job_data=self.job
+                self.job=ScryptCalc.PURGE_VALUE_RESULT
+                del self.job
                 self.job=None
             self.lock_job.release()
+            gc.collect()
             return job_data
         
         def complete_job(self,input_result,input_compute_time_ms):
@@ -123,6 +126,7 @@ class ScryptCalc(object):
             input_result=ScryptCalc.PURGE_VALUE
             del input_result
             input_result=None
+            gc.collect()
             return
 
         def work_loop(self):
@@ -159,12 +163,32 @@ class ScryptCalc(object):
                     gc.collect()
 
             self.UI_signaller=None
+            gc.collect()
             self.has_quit.set()
             return
 
     class UI(object):
         qtmsg_blacklist_startswith=["WARNING: QApplication was not created in the main()","OleSetClipboard: Failed to set mime data (text/plain) on clipboard: COM error"]
 
+        class Text_Editor(QPlainTextEdit):
+            def createMimeDataFromSelection(self):
+                cursor=self.textCursor()
+                start=cursor.selectionStart()
+                end=cursor.selectionEnd()
+                text=self.document().toRawText()
+                selected_text=text[start:end]
+                self.parentWidget().set_clipboard_text(selected_text)
+                text=ScryptCalc.PURGE_VALUE_RESULT
+                del text
+                text=None
+                start=-1
+                end=-1
+                selected_text=ScryptCalc.PURGE_VALUE_RESULT
+                del selected_text
+                selected_text=None
+                gc.collect()
+                return None
+            
         class Main_Window(QMainWindow):
             def __init__(self,input_parent_app,input_is_ready,input_is_exiting,input_has_quit,input_signaller,input_scrypt_calculator,input_settings):
                 super(ScryptCalc.UI.Main_Window,self).__init__(None)
@@ -184,6 +208,12 @@ class ScryptCalc(object):
 
                 self.UI_scale=self.logicalDpiX()/96.0
                 self.signal_response_calls={"compute_done":self.receive_result}
+                
+                self.pending_clipboard_text=None
+                
+                self.timer_update_clipboard=QTimer(self)
+                self.timer_update_clipboard.timeout.connect(self.set_clipboard_text_timer_event)
+                self.timer_update_clipboard.setSingleShot(True)
 
                 self.font_arial=QFont("Arial")
                 self.font_arial.setPointSize(round(9*self.UI_scale))
@@ -305,11 +335,11 @@ class ScryptCalc(object):
                 self.button_copy.setFont(self.font_arial)
 
                 self.textedit_result=None
-                self.clipboard=QApplication.clipboard()
                 self.result_bytes=bytes()
                 
+                self.clipboard=QApplication.clipboard()
+                
                 self.new_textedit_result_widget()
-
 
                 if input_settings is not None:
                     if input_settings["format"] is not None:
@@ -367,13 +397,41 @@ class ScryptCalc(object):
                 gc.collect()
                 input_is_ready.set()
                 return
-
+            
+            def set_clipboard_text(self,input_text):
+                self.timer_update_clipboard.start(0)
+                self.pending_clipboard_text=input_text
+                input_text=ScryptCalc.PURGE_VALUE_RESULT
+                del input_text
+                input_text=None
+                gc.collect()
+                return
+            
+            def set_clipboard_text_timer_event(self):
+                if self.pending_clipboard_text is None:
+                    return
+                
+                start_time=GetTickCount64()
+                while self.clipboard.text()!=self.pending_clipboard_text and (GetTickCount64()-start_time)<ScryptCalc.CLIPBOARD_SET_TIMEOUT_MILLISECONDS:
+                    self.clipboard.setText(self.pending_clipboard_text)
+                    QCoreApplication.processEvents()
+                self.pending_clipboard_text=ScryptCalc.PURGE_VALUE_RESULT
+                del self.pending_clipboard_text
+                self.pending_clipboard_text=None
+                return
+            
             def new_textedit_result_widget(self):
                 if self.textedit_result is not None:
                     enabled_state=self.textedit_result.isEnabled()
                     self.setUpdatesEnabled(False)
                     self.textedit_result.hide()
-                    self.textedit_result.setPlainText(ScryptCalc.PURGE_VALUE_RESULT)
+                    cursor=self.textedit_result.textCursor()
+                    cursor.movePosition(QTextCursor.End)
+                    self.textedit_result.setTextCursor(cursor)
+                    del cursor
+                    cursor=None
+                    self.textedit_result.document().setPlainText(ScryptCalc.PURGE_VALUE_RESULT)
+                    self.textedit_result.document().clear()
                     self.textedit_result.setDocument(None)
                     self.textedit_result.setParent(None)
                     del self.textedit_result
@@ -381,7 +439,7 @@ class ScryptCalc(object):
                 else:
                     enabled_state=True
 
-                self.textedit_result=QPlainTextEdit(self)
+                self.textedit_result=ScryptCalc.UI.Text_Editor(self)
                 self.textedit_result.setReadOnly(True)
                 self.textedit_result.setGeometry(5*self.UI_scale,314*self.UI_scale,328*self.UI_scale,110*self.UI_scale)
                 self.textedit_result.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
@@ -389,7 +447,9 @@ class ScryptCalc(object):
                 self.textedit_result.verticalScrollBar().setStyleSheet(f"QScrollBar:vertical {chr(123)}border:{str(round(1*self.UI_scale))}px; width:{str(round(15*self.UI_scale))}px solid;{chr(125)}")
                 self.textedit_result.setFont(self.font_consolas)
                 self.textedit_result.setWordWrapMode(QTextOption.WrapAnywhere)
-                self.textedit_result.document().setUndoRedoEnabled(False)
+                document=self.textedit_result.document()
+                document.setUndoRedoEnabled(False)
+                document.setUseDesignMetrics(False)
                 self.textedit_result.setAcceptDrops(False)
                 
                 self.textedit_result.setEnabled(enabled_state)
@@ -460,7 +520,7 @@ class ScryptCalc(object):
 
             def update_button_state(self):
                 self.button_compute.setEnabled(self.input_enabled and self.memory_used_ok)
-                result_text=self.textedit_result.toPlainText()
+                result_text=self.textedit_result.document().toRawText()
                 result_not_empty=len(result_text)>0
                 result_text=ScryptCalc.PURGE_VALUE_RESULT
                 del result_text
@@ -525,11 +585,8 @@ class ScryptCalc(object):
                 return
             
             def button_copy_onclick(self):
-                result_text=self.textedit_result.toPlainText()
-                start_time=GetTickCount64()
-                while self.clipboard.text()!=result_text and (GetTickCount64()-start_time)<ScryptCalc.CLIPBOARD_SET_TIMEOUT_MILLISECONDS:
-                    self.clipboard.setText(result_text)
-                    QCoreApplication.processEvents()
+                result_text=self.textedit_result.document().toRawText()
+                self.set_clipboard_text(result_text)
                 result_text=ScryptCalc.PURGE_VALUE_RESULT
                 del result_text
                 result_text=None
@@ -572,19 +629,23 @@ class ScryptCalc(object):
                 QCoreApplication.processEvents()
                 self.UI_signaller=None
                 self.parent_app=None
-                self.clipboard=None
                 gc.collect()
                 self.has_quit.set()
                 return
 
             def receive_result(self,result_data):
                 self.result_bytes=result_data["result"]
+                self.label_result_info.setText(f"Result took {round(result_data['compute_time_ms']/1000.0,3)} second(s):")
                 result_data["result"]=ScryptCalc.PURGE_VALUE
                 del result_data["result"]
                 result_data["result"]=None
+                result_data["compute_time_ms"]=ScryptCalc.PURGE_VALUE
+                del result_data["compute_time_ms"]
+                result_data["compute_time_ms"]=None
+                del result_data
+                result_data={}
                 self.set_input_enabled(True)
                 self.waiting_for_result=False
-                self.label_result_info.setText(f"Result took {round(result_data['compute_time_ms']/1000.0,3)} second(s):")
                 self.display_result()
                 self.parent_app.alert(self)
                 return
@@ -604,7 +665,7 @@ class ScryptCalc(object):
                 elif result_format=="base85":
                     text_value=base64.b85encode(self.result_bytes).decode("utf-8")
 
-                self.textedit_result.setPlainText(text_value)
+                self.textedit_result.document().setPlainText(text_value)
                 text_value=ScryptCalc.PURGE_VALUE_RESULT
                 del text_value
                 text_value=None
@@ -834,6 +895,7 @@ if Versions_Str_Equal_Or_Less(PYQT5_MAX_SUPPORTED_COMPILE_VERSION,PYQT_VERSION_S
     sys.stderr.flush()
 
 gc.enable()
+gc.set_threshold(1,1,1)
 
 config_file_path=os.path.join(os.path.realpath(os.path.dirname(sys.executable)),"config.txt")
 
