@@ -1,6 +1,6 @@
 import base64,ctypes,gc,os,sys,time,threading,hashlib
 from PyQt5.QtCore import (PYQT_VERSION_STR,Qt,QObject,QCoreApplication,pyqtSignal,qInstallMessageHandler)
-from PyQt5.QtWidgets import (QStyle,QApplication,QLabel,QLineEdit,QMainWindow,QPushButton,QSpinBox,QTextEdit,QComboBox,QCheckBox)
+from PyQt5.QtWidgets import (QStyle,QApplication,QLabel,QLineEdit,QMainWindow,QPushButton,QSpinBox,QPlainTextEdit,QComboBox,QCheckBox)
 from PyQt5.QtGui import (QFont,QTextOption,QTextCursor)
 
 PYQT5_MAX_SUPPORTED_COMPILE_VERSION="5.12.2"
@@ -120,6 +120,8 @@ class ScryptCalc(object):
         
         def complete_job(self,input_result,input_compute_time_ms):
             self.UI_signaller.SEND_EVENT("compute_done",{"result":input_result,"compute_time_ms":input_compute_time_ms})
+            input_result=ScryptCalc.PURGE_VALUE
+            del input_result
             input_result=None
             return
 
@@ -154,7 +156,9 @@ class ScryptCalc(object):
                     result=ScryptCalc.PURGE_VALUE
                     del result
                     result=None
+                    gc.collect()
 
+            self.UI_signaller=None
             self.has_quit.set()
             return
 
@@ -199,6 +203,7 @@ class ScryptCalc(object):
                 self.textbox_input.setGeometry(10*self.UI_scale,25*self.UI_scale,380*self.UI_scale,26*self.UI_scale)
                 self.textbox_input.setFont(self.font_consolas)
                 self.textbox_input.setMaxLength(ScryptCalc.PARAM_INPUT_MAX)
+                self.textbox_input.setAcceptDrops(False)
 
                 self.label_salt=QLabel(self)
                 self.label_salt.setGeometry(10*self.UI_scale,55*self.UI_scale,100*self.UI_scale,26*self.UI_scale)
@@ -209,6 +214,7 @@ class ScryptCalc(object):
                 self.textbox_salt.setGeometry(10*self.UI_scale,75*self.UI_scale,380*self.UI_scale,26*self.UI_scale)
                 self.textbox_salt.setFont(self.font_consolas)
                 self.textbox_salt.setMaxLength(ScryptCalc.PARAM_SALT_MAX)
+                self.textbox_salt.setAcceptDrops(False)
 
                 self.label_N_exponent=QLabel(self)
                 self.label_N_exponent.setGeometry(10*self.UI_scale,115*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
@@ -293,23 +299,17 @@ class ScryptCalc(object):
                 self.label_result_info.setText("Result:")
                 self.label_result_info.setFont(self.font_arial)
 
-                self.textedit_result=QTextEdit(self)
-                self.textedit_result.setReadOnly(True)
-                self.textedit_result.setGeometry(5*self.UI_scale,314*self.UI_scale,328*self.UI_scale,110*self.UI_scale)
-                self.textedit_result.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-                self.textedit_result.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-                self.textedit_result.verticalScrollBar().setStyleSheet(f"QScrollBar:vertical {chr(123)}border:{str(round(1*self.UI_scale))}px; width:{str(round(15*self.UI_scale))}px solid;{chr(125)}")
-                self.textedit_result.setFont(self.font_consolas)
-                self.textedit_result.setWordWrapMode(QTextOption.WrapAnywhere)
-
                 self.button_copy=QPushButton(self)
                 self.button_copy.setGeometry(336*self.UI_scale,341*self.UI_scale,60*self.UI_scale,52*self.UI_scale)
                 self.button_copy.setText("Copy\nresult")
                 self.button_copy.setFont(self.font_arial)
-                
-                self.clipboard=QApplication.clipboard()
 
+                self.textedit_result=None
+                self.clipboard=QApplication.clipboard()
                 self.result_bytes=bytes()
+                
+                self.new_textedit_result_widget()
+
 
                 if input_settings is not None:
                     if input_settings["format"] is not None:
@@ -368,6 +368,36 @@ class ScryptCalc(object):
                 input_is_ready.set()
                 return
 
+            def new_textedit_result_widget(self):
+                if self.textedit_result is not None:
+                    enabled_state=self.textedit_result.isEnabled()
+                    self.setUpdatesEnabled(False)
+                    self.textedit_result.hide()
+                    self.textedit_result.setPlainText(ScryptCalc.PURGE_VALUE_RESULT)
+                    self.textedit_result.setParent(None)
+                    del self.textedit_result
+                    self.textedit_result=None
+                else:
+                    enabled_state=True
+
+                self.textedit_result=QPlainTextEdit(self)
+                self.textedit_result.setReadOnly(True)
+                self.textedit_result.setGeometry(5*self.UI_scale,314*self.UI_scale,328*self.UI_scale,110*self.UI_scale)
+                self.textedit_result.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+                self.textedit_result.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+                self.textedit_result.verticalScrollBar().setStyleSheet(f"QScrollBar:vertical {chr(123)}border:{str(round(1*self.UI_scale))}px; width:{str(round(15*self.UI_scale))}px solid;{chr(125)}")
+                self.textedit_result.setFont(self.font_consolas)
+                self.textedit_result.setWordWrapMode(QTextOption.WrapAnywhere)
+                self.textedit_result.document().setUndoRedoEnabled(False)
+                self.textedit_result.setAcceptDrops(False)
+                
+                self.textedit_result.setEnabled(enabled_state)
+                self.textedit_result.show()
+                self.setUpdatesEnabled(True)
+                enabled_state=False
+                gc.collect()
+                return
+            
             def textbox_input_onchange(self):
                 initial_cursor_pos=self.textbox_input.cursorPosition()
                 initial_text=str(self.textbox_input.text())
@@ -377,6 +407,8 @@ class ScryptCalc(object):
                 self.textbox_input.setText(final_text)
                 new_cursor_pos=max(min(initial_cursor_pos-(initial_text_len-final_text_len),final_text_len),0)
                 self.textbox_input.setCursorPosition(new_cursor_pos)
+                initial_cursor_pos=-1
+                new_cursor_pos=-1
                 initial_text_len=-1
                 initial_text=ScryptCalc.PURGE_VALUE
                 del initial_text
@@ -428,11 +460,13 @@ class ScryptCalc(object):
             def update_button_state(self):
                 self.button_compute.setEnabled(self.input_enabled and self.memory_used_ok)
                 result_text=self.textedit_result.toPlainText()
-                self.button_copy.setEnabled(self.input_enabled and len(result_text)>0)
+                result_not_empty=len(result_text)>0
                 result_text=ScryptCalc.PURGE_VALUE_RESULT
                 del result_text
                 result_text=None
                 gc.collect()
+                self.button_copy.setEnabled(self.input_enabled and result_not_empty)
+                result_not_empty=False
                 return
 
             @staticmethod
@@ -479,10 +513,10 @@ class ScryptCalc(object):
 
             def button_compute_onclick(self):
                 self.set_input_enabled(False)
-                self.waiting_for_result=True
+                self.new_textedit_result_widget()
                 self.purge_result_info()
+                self.waiting_for_result=True
                 self.label_result_info.setText("Computing result...")
-                self.purge_result_field()
                 self.scrypt_calculator.REQUEST_COMPUTE(self.textbox_input.text(),self.textbox_salt.text(),self.spinbox_R.value(),self.param_N,self.spinbox_P.value(),self.spinbox_length.value())
 
                 if self.checkbox_clear_password_asap.isChecked()==True:
@@ -525,7 +559,7 @@ class ScryptCalc(object):
                 self.is_exiting.set()
                 
                 self.purge_result_bytes()
-                self.purge_result_field()
+                self.new_textedit_result_widget()
                 ScryptCalc.UI.Main_Window.purge_textbox_data(self.textbox_input)
                 ScryptCalc.UI.Main_Window.purge_textbox_data(self.textbox_salt)
                 self.purge_result_info()
@@ -535,18 +569,20 @@ class ScryptCalc(object):
                 self.spinbox_length.setValue(1)
                 self.combobox_result_format.setCurrentIndex(1)
                 QCoreApplication.processEvents()
+                self.UI_signaller=None
+                self.parent_app=None
+                self.clipboard=None
                 gc.collect()
                 self.has_quit.set()
                 return
 
             def receive_result(self,result_data):
-                self.set_input_enabled(True)
-                self.waiting_for_result=False
-                self.purge_result_bytes()
                 self.result_bytes=result_data["result"]
                 result_data["result"]=ScryptCalc.PURGE_VALUE
                 del result_data["result"]
                 result_data["result"]=None
+                self.set_input_enabled(True)
+                self.waiting_for_result=False
                 self.label_result_info.setText(f"Result took {round(result_data['compute_time_ms']/1000.0,3)} second(s):")
                 self.display_result()
                 self.parent_app.alert(self)
@@ -567,12 +603,12 @@ class ScryptCalc(object):
                 elif result_format=="base85":
                     text_value=base64.b85encode(self.result_bytes).decode("utf-8")
 
-                self.textedit_result.setText(text_value)
-                self.update_button_state()
+                self.textedit_result.setPlainText(text_value)
                 text_value=ScryptCalc.PURGE_VALUE_RESULT
                 del text_value
                 text_value=None
                 gc.collect()
+                self.update_button_state()
                 return
 
             def purge_result_info(self):
@@ -584,26 +620,20 @@ class ScryptCalc(object):
             def purge_result_bytes(self):
                 self.result_bytes=ScryptCalc.PURGE_VALUE
                 del self.result_bytes
-                self.result_bytes=None
                 self.result_bytes=bytes()
-                gc.collect()
-                return
-
-            def purge_result_field(self):
-                cursor_handle=self.textedit_result.textCursor()
-                cursor_handle.movePosition(QTextCursor.Left,QTextCursor.MoveAnchor,0)
-                self.textedit_result.setTextCursor(cursor_handle)
-                self.textedit_result.setText(ScryptCalc.PURGE_VALUE_RESULT)
-                self.textedit_result.setText("")
                 gc.collect()
                 return
 
             @staticmethod
             def purge_textbox_data(input_textbox):
+                input_textbox.deselect()
                 input_textbox.selectionStart=0
                 input_textbox.selectionEnd=0
                 input_textbox.setCursorPosition(0)
                 input_textbox.setText(ScryptCalc.PURGE_VALUE)
+                input_textbox.selectionStart=0
+                input_textbox.selectionEnd=0
+                input_textbox.setCursorPosition(0)
                 input_textbox.setText("")
                 gc.collect()
                 return
