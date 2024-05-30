@@ -3,11 +3,22 @@ from PyQt5.QtCore import (PYQT_VERSION_STR,Qt,QObject,QCoreApplication,pyqtSigna
 from PyQt5.QtWidgets import (QStyle,QApplication,QLabel,QLineEdit,QMainWindow,QPushButton,QSpinBox,QPlainTextEdit,QComboBox,QCheckBox)
 from PyQt5.QtGui import (QFont,QTextOption,QTextCursor)
 
-PYQT5_MAX_SUPPORTED_COMPILE_VERSION="5.12.2"
+gc_lock=threading.Lock()
+
+def Cleanup_Memory():
+    gc_lock.acquire()
+    gc.collect()
+    gc_lock.release()
+    return
+
+gc.enable()
+gc.set_threshold(1,1,1)
 
 GetTickCount64=ctypes.windll.kernel32.GetTickCount64
 GetTickCount64.restype=ctypes.c_uint64
 GetTickCount64.argtypes=()
+
+PYQT5_MAX_SUPPORTED_COMPILE_VERSION="5.12.2"
 
 def Versions_Str_Equal_Or_Less(version_expected,version_actual):
     version_compliant=False
@@ -48,8 +59,8 @@ class ScryptCalc(object):
     DEFAULTPARAM_FORMAT="base64"
     DEFAULTPARAM_LENGTH=32
 
-    PURGE_VALUE="\x00"*max(PARAM_INPUT_MAX,PARAM_SALT_MAX,PARAM_LENGTH_MAX)
-    PURGE_VALUE_RESULT="\x00"*(PARAM_LENGTH_MAX*8)
+    PURGE_VALUE=u"+"*max(PARAM_INPUT_MAX,PARAM_SALT_MAX,PARAM_LENGTH_MAX)
+    PURGE_VALUE_RESULT=u"+"*(PARAM_LENGTH_MAX*8)
 
     class UI_Signaller(QObject):
         active_signal=pyqtSignal(object)
@@ -97,17 +108,28 @@ class ScryptCalc(object):
                 time.sleep(ScryptCalc.PENDING_ACTIVITY_HEARTBEAT_SECONDS)
             
             self.working_thread.join()
+            del self.working_thread
+            self.working_thread=None
+            Cleanup_Memory()
             return
 
         def REQUEST_COMPUTE(self,input_value,input_salt,input_R,input_N,input_P,input_length):
             self.lock_job.acquire()
-            if self.job is not None:
-                self.lock_job.release()
-                return False
-
             self.job={"value":input_value,"salt":input_salt,"R":input_R,"N":input_N,"P":input_P,"length":input_length}
             self.lock_job.release()
-            return True
+
+            input_value=ScryptCalc.PURGE_VALUE
+            del input_value
+            input_value=None
+            input_salt=ScryptCalc.PURGE_VALUE
+            del input_salt
+            input_salt=None
+            input_R=1
+            input_N=1
+            input_P=1
+            input_length=1
+            Cleanup_Memory()
+            return
 
         def get_job(self):
             job_data=None
@@ -118,7 +140,7 @@ class ScryptCalc(object):
                 del self.job
                 self.job=None
             self.lock_job.release()
-            gc.collect()
+            Cleanup_Memory()
             return job_data
         
         def complete_job(self,input_result,input_compute_time_ms):
@@ -126,7 +148,10 @@ class ScryptCalc(object):
             input_result=ScryptCalc.PURGE_VALUE
             del input_result
             input_result=None
-            gc.collect()
+            input_compute_time_ms=0
+            del input_compute_time_ms
+            input_compute_time_ms=None
+            Cleanup_Memory()
             return
 
         def work_loop(self):
@@ -160,10 +185,10 @@ class ScryptCalc(object):
                     result=ScryptCalc.PURGE_VALUE
                     del result
                     result=None
-                    gc.collect()
+                    Cleanup_Memory()
 
             self.UI_signaller=None
-            gc.collect()
+            Cleanup_Memory()
             self.has_quit.set()
             return
 
@@ -186,7 +211,7 @@ class ScryptCalc(object):
                 selected_text=ScryptCalc.PURGE_VALUE_RESULT
                 del selected_text
                 selected_text=None
-                gc.collect()
+                Cleanup_Memory()
                 return None
             
         class Main_Window(QMainWindow):
@@ -394,7 +419,7 @@ class ScryptCalc(object):
                 self.update_memory_usage()
                 self.set_input_enabled(True)
                 
-                gc.collect()
+                Cleanup_Memory()
                 input_is_ready.set()
                 return
             
@@ -404,7 +429,7 @@ class ScryptCalc(object):
                 input_text=ScryptCalc.PURGE_VALUE_RESULT
                 del input_text
                 input_text=None
-                gc.collect()
+                Cleanup_Memory()
                 return
             
             def set_clipboard_text_timer_event(self):
@@ -418,6 +443,7 @@ class ScryptCalc(object):
                 self.pending_clipboard_text=ScryptCalc.PURGE_VALUE_RESULT
                 del self.pending_clipboard_text
                 self.pending_clipboard_text=None
+                Cleanup_Memory()
                 return
             
             def new_textedit_result_widget(self):
@@ -430,16 +456,21 @@ class ScryptCalc(object):
                     self.textedit_result.setTextCursor(cursor)
                     del cursor
                     cursor=None
+                    self.textedit_result.document().clearUndoRedoStacks()
                     self.textedit_result.document().setPlainText(ScryptCalc.PURGE_VALUE_RESULT)
+                    self.textedit_result.document().setPlainText(u"")
                     self.textedit_result.document().clear()
                     self.textedit_result.setDocument(None)
                     self.textedit_result.setParent(None)
+                    self.textedit_result.destroy()
                     del self.textedit_result
                     self.textedit_result=None
+                    Cleanup_Memory()
                 else:
                     enabled_state=True
 
                 self.textedit_result=ScryptCalc.UI.Text_Editor(self)
+                self.textedit_result.setAttribute(Qt.WA_DeleteOnClose,True) 
                 self.textedit_result.setReadOnly(True)
                 self.textedit_result.setGeometry(5*self.UI_scale,314*self.UI_scale,328*self.UI_scale,110*self.UI_scale)
                 self.textedit_result.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
@@ -447,21 +478,23 @@ class ScryptCalc(object):
                 self.textedit_result.verticalScrollBar().setStyleSheet(f"QScrollBar:vertical {chr(123)}border:{str(round(1*self.UI_scale))}px; width:{str(round(15*self.UI_scale))}px solid;{chr(125)}")
                 self.textedit_result.setFont(self.font_consolas)
                 self.textedit_result.setWordWrapMode(QTextOption.WrapAnywhere)
+                self.textedit_result.setUndoRedoEnabled(False)
                 document=self.textedit_result.document()
                 document.setUndoRedoEnabled(False)
                 document.setUseDesignMetrics(False)
+                document.setMaximumBlockCount(0)
                 self.textedit_result.setAcceptDrops(False)
                 
                 self.textedit_result.setEnabled(enabled_state)
                 self.textedit_result.show()
                 self.setUpdatesEnabled(True)
                 enabled_state=False
-                gc.collect()
+                Cleanup_Memory()
                 return
             
             def textbox_input_onchange(self):
                 initial_cursor_pos=self.textbox_input.cursorPosition()
-                initial_text=str(self.textbox_input.text())
+                initial_text=self.textbox_input.text()
                 initial_text_len=len(initial_text)
                 final_text=initial_text.replace(" ","")
                 final_text_len=len(final_text)
@@ -478,11 +511,12 @@ class ScryptCalc(object):
                 final_text=ScryptCalc.PURGE_VALUE
                 del final_text
                 final_text=None
+                Cleanup_Memory()
                 return
 
             def textbox_salt_onchange(self):
                 initial_cursor_pos=self.textbox_salt.cursorPosition()
-                initial_text=str(self.textbox_salt.text())
+                initial_text=self.textbox_salt.text()
                 initial_text_len=len(initial_text)
                 final_text=initial_text.replace(" ","")
                 final_text_len=len(final_text)
@@ -497,6 +531,7 @@ class ScryptCalc(object):
                 final_text=ScryptCalc.PURGE_VALUE
                 del final_text
                 final_text=None
+                Cleanup_Memory()
                 return
 
             def combobox_result_format_onindexchanged(self):
@@ -525,7 +560,7 @@ class ScryptCalc(object):
                 result_text=ScryptCalc.PURGE_VALUE_RESULT
                 del result_text
                 result_text=None
-                gc.collect()
+                Cleanup_Memory()
                 self.button_copy.setEnabled(self.input_enabled and result_not_empty)
                 result_not_empty=False
                 return
@@ -590,7 +625,7 @@ class ScryptCalc(object):
                 result_text=ScryptCalc.PURGE_VALUE_RESULT
                 del result_text
                 result_text=None
-                gc.collect()
+                Cleanup_Memory()
                 return
 
             def signal_response_handler(self,event):
@@ -625,11 +660,19 @@ class ScryptCalc(object):
                 self.spinbox_R.setValue(1)
                 self.spinbox_P.setValue(1)
                 self.spinbox_length.setValue(1)
+                self.textbox_input.setParent(None)
+                self.textbox_input.destroy()
+                del self.textbox_input
+                self.textbox_input=None
+                self.textbox_salt.setParent(None)
+                self.textbox_salt.destroy()
+                del self.textbox_salt
+                self.textbox_salt=None
                 self.combobox_result_format.setCurrentIndex(1)
                 QCoreApplication.processEvents()
                 self.UI_signaller=None
                 self.parent_app=None
-                gc.collect()
+                Cleanup_Memory()
                 self.has_quit.set()
                 return
 
@@ -644,6 +687,7 @@ class ScryptCalc(object):
                 result_data["compute_time_ms"]=None
                 del result_data
                 result_data={}
+                Cleanup_Memory()
                 self.set_input_enabled(True)
                 self.waiting_for_result=False
                 self.display_result()
@@ -669,21 +713,21 @@ class ScryptCalc(object):
                 text_value=ScryptCalc.PURGE_VALUE_RESULT
                 del text_value
                 text_value=None
-                gc.collect()
+                Cleanup_Memory()
                 self.update_button_state()
                 return
 
             def purge_result_info(self):
                 self.label_result_info.setText(ScryptCalc.PURGE_VALUE_RESULT)
-                self.label_result_info.setText("")
-                gc.collect()
+                self.label_result_info.setText(u"")
+                Cleanup_Memory()
                 return
 
             def purge_result_bytes(self):
-                self.result_bytes=ScryptCalc.PURGE_VALUE
+                self.result_bytes=bytes(ScryptCalc.PURGE_VALUE,"utf-8")
                 del self.result_bytes
                 self.result_bytes=bytes()
-                gc.collect()
+                Cleanup_Memory()
                 return
 
             @staticmethod
@@ -692,12 +736,17 @@ class ScryptCalc(object):
                 input_textbox.selectionStart=0
                 input_textbox.selectionEnd=0
                 input_textbox.setCursorPosition(0)
+                max_length=input_textbox.maxLength()
+                input_textbox.setMaxLength(0)
+                input_textbox.clear()
+                input_textbox.setMaxLength(max_length)
+                max_length=-1
                 input_textbox.setText(ScryptCalc.PURGE_VALUE)
                 input_textbox.selectionStart=0
                 input_textbox.selectionEnd=0
                 input_textbox.setCursorPosition(0)
-                input_textbox.setText("")
-                gc.collect()
+                input_textbox.setText(u"")
+                Cleanup_Memory()
                 return
 
         def __init__(self,input_signaller,input_scrypt_calculator,input_settings=None):
@@ -746,10 +795,13 @@ class ScryptCalc(object):
             
             sys.exit(self.UI_app.exec_())
             
+            self.UI_window.destroy()
             del self.UI_window
             self.UI_window=None
+            self.UI_app.close
             del self.UI_app
             self.UI_app=None
+            Cleanup_Memory()
             return
 
         def IS_RUNNING(self):
@@ -760,6 +812,9 @@ class ScryptCalc(object):
         
         def CONCLUDE(self):
             self.working_thread.join()
+            del self.working_thread
+            self.working_thread=None
+            Cleanup_Memory()
             return
 
     @staticmethod
@@ -844,6 +899,7 @@ class ScryptCalc(object):
         input_string=ScryptCalc.PURGE_VALUE_RESULT
         del input_string
         input_string=None
+        Cleanup_Memory()
 
         return collected_settings
 
@@ -890,12 +946,10 @@ class ScryptCalc(object):
             self.flush_std_buffers()
         return
 
+
 if Versions_Str_Equal_Or_Less(PYQT5_MAX_SUPPORTED_COMPILE_VERSION,PYQT_VERSION_STR)==False:
     sys.stderr.write(f"WARNING: PyQt5 version({PYQT_VERSION_STR}) is higher than the maximum supported version for compiling({PYQT5_MAX_SUPPORTED_COMPILE_VERSION}). The application may run off source code but will fail to compile.\n")
     sys.stderr.flush()
-
-gc.enable()
-gc.set_threshold(1,1,1)
 
 config_file_path=os.path.join(os.path.realpath(os.path.dirname(sys.executable)),"config.txt")
 
@@ -917,7 +971,7 @@ config_string=ScryptCalc.PURGE_VALUE_RESULT
 del config_string
 config_string=None
 ScryptCalcInstance.RUN()
+
 del ScryptCalcInstance
 ScryptCalcInstance=None
-
-gc.collect()
+Cleanup_Memory()
