@@ -408,11 +408,12 @@ class ScryptCalc(object):
                     input_settings={}
                 
                 self.textbox_input.textChanged.connect(self.textbox_input_onchange)
+                self.textbox_input.returnPressed.connect(self.begin_compute)
                 self.textbox_salt.textChanged.connect(self.textbox_salt_onchange)
                 self.spinbox_N_exponent.valueChanged.connect(self.spinbox_N_exponent_onchange)
                 self.spinbox_R.valueChanged.connect(self.spinbox_R_onchange)
                 self.combobox_result_format.currentIndexChanged.connect(self.combobox_result_format_onindexchanged)
-                self.button_compute.clicked.connect(self.button_compute_onclick)
+                self.button_compute.clicked.connect(self.begin_compute)
                 self.button_copy.clicked.connect(self.button_copy_onclick)
 
                 self.update_N_param()
@@ -607,7 +608,10 @@ class ScryptCalc(object):
                 self.update_memory_usage()
                 return
 
-            def button_compute_onclick(self):
+            def begin_compute(self):
+                if self.button_compute.isEnabled()==False:
+                    return
+
                 self.set_input_enabled(False)
                 self.new_textedit_result_widget()
                 self.purge_result_info()
@@ -691,6 +695,7 @@ class ScryptCalc(object):
                 self.set_input_enabled(True)
                 self.waiting_for_result=False
                 self.display_result()
+                self.button_copy.setFocus()
                 self.parent_app.alert(self)
                 return
 
