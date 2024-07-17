@@ -1,7 +1,7 @@
 import base64,ctypes,gc,os,sys,time,threading,hashlib
 from PyQt5.QtCore import (PYQT_VERSION_STR,Qt,QObject,QCoreApplication,pyqtSignal,qInstallMessageHandler,QTimer)
-from PyQt5.QtWidgets import (QStyle,QApplication,QLabel,QLineEdit,QMainWindow,QPushButton,QSpinBox,QPlainTextEdit,QComboBox,QCheckBox)
-from PyQt5.QtGui import (QFont,QTextOption,QTextCursor)
+from PyQt5.QtWidgets import (QStyle,QApplication,QMenu,QLabel,QLineEdit,QMainWindow,QPushButton,QSpinBox,QPlainTextEdit,QComboBox,QCheckBox)
+from PyQt5.QtGui import (QFont,QTextOption,QTextCursor,QCursor,QKeySequence)
 
 gc_lock=threading.Lock()
 
@@ -259,6 +259,7 @@ class ScryptCalc(object):
                 self.textbox_input.setFont(self.font_consolas)
                 self.textbox_input.setMaxLength(ScryptCalc.PARAM_INPUT_MAX)
                 self.textbox_input.setAcceptDrops(False)
+                self.textbox_input.setContextMenuPolicy(Qt.CustomContextMenu)
 
                 self.label_salt=QLabel(self)
                 self.label_salt.setGeometry(10*self.UI_scale,55*self.UI_scale,100*self.UI_scale,26*self.UI_scale)
@@ -270,6 +271,7 @@ class ScryptCalc(object):
                 self.textbox_salt.setFont(self.font_consolas)
                 self.textbox_salt.setMaxLength(ScryptCalc.PARAM_SALT_MAX)
                 self.textbox_salt.setAcceptDrops(False)
+                self.textbox_salt.setContextMenuPolicy(Qt.CustomContextMenu)
 
                 self.label_N_exponent=QLabel(self)
                 self.label_N_exponent.setGeometry(10*self.UI_scale,115*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
@@ -409,7 +411,9 @@ class ScryptCalc(object):
                 
                 self.textbox_input.textChanged.connect(self.textbox_input_onchange)
                 self.textbox_input.returnPressed.connect(self.begin_compute)
+                self.textbox_input.customContextMenuRequested.connect(lambda event:ScryptCalc.UI.Main_Window.line_edit_context_menu_show(event,self.textbox_input))
                 self.textbox_salt.textChanged.connect(self.textbox_salt_onchange)
+                self.textbox_salt.customContextMenuRequested.connect(lambda event:ScryptCalc.UI.Main_Window.line_edit_context_menu_show(event,self.textbox_salt))
                 self.spinbox_N_exponent.valueChanged.connect(self.spinbox_N_exponent_onchange)
                 self.spinbox_R.valueChanged.connect(self.spinbox_R_onchange)
                 self.combobox_result_format.currentIndexChanged.connect(self.combobox_result_format_onindexchanged)
@@ -738,8 +742,7 @@ class ScryptCalc(object):
             @staticmethod
             def purge_textbox_data(input_textbox):
                 input_textbox.deselect()
-                input_textbox.selectionStart=0
-                input_textbox.selectionEnd=0
+                input_textbox.setSelection(0,0)
                 input_textbox.setCursorPosition(0)
                 max_length=input_textbox.maxLength()
                 input_textbox.setMaxLength(0)
@@ -747,11 +750,66 @@ class ScryptCalc(object):
                 input_textbox.setMaxLength(max_length)
                 max_length=-1
                 input_textbox.setText(ScryptCalc.PURGE_VALUE)
-                input_textbox.selectionStart=0
-                input_textbox.selectionEnd=0
+                input_textbox.setSelection(0,0)
                 input_textbox.setCursorPosition(0)
                 input_textbox.setText(u"")
                 Cleanup_Memory()
+                return
+
+            @staticmethod
+            def line_edit_context_menu_show(event,source_item):
+                parent=source_item.parentWidget()
+                clipboard=parent.clipboard
+                
+                menu=QMenu(parent)
+                item_text_length=len(source_item.text())
+                if item_text_length>0:
+                    menu_action=menu.addAction("Select &All")
+                    menu_action.setShortcut(QKeySequence(Qt.Key_A))
+                    menu_action.triggered.connect(lambda:source_item.selectAll())
+                    if source_item.hasSelectedText()==True:
+                        menu.addSeparator()
+                        menu_action=menu.addAction("&Copy Selection")
+                        menu_action.setShortcut(QKeySequence(Qt.Key_C))
+                        menu_action.triggered.connect(lambda:parent.set_clipboard_text(source_item.selectedText()))
+                        menu_action=menu.addAction("Cu&t Selection")
+                        menu_action.setShortcut(QKeySequence(Qt.Key_T))
+                        menu_action.triggered.connect(lambda:[parent.set_clipboard_text(source_item.selectedText()),source_item.setText(f"{source_item.text()[:source_item.selectionStart()]}{source_item.text()[source_item.selectionEnd():]}")])
+                        menu_action=menu.addAction("&Delete Selection")
+                        menu_action.triggered.connect(lambda:source_item.setText(f"{source_item.text()[:source_item.selectionStart()]}{source_item.text()[source_item.selectionEnd():]}"))
+                        menu_action.setShortcut(QKeySequence(Qt.Key_D))
+                        menu.addSeparator()
+                        menu_action=menu.addAction("D&eselect")
+                        menu_action.triggered.connect(lambda:source_item.deselect())
+                        menu_action.setShortcut(QKeySequence(Qt.Key_E))
+                if len(clipboard.text())>0:
+                    if source_item.hasSelectedText()==True:
+                        menu_action=menu.addAction("&Paste Over Selection")
+                        menu_action.triggered.connect(lambda:source_item.setText(f"{source_item.text()[:source_item.selectionStart()]}{clipboard.text()}{source_item.text()[source_item.selectionEnd():]}"))
+                    else:
+                        menu_action=menu.addAction("&Paste")
+                        menu_action.triggered.connect(lambda:source_item.setText(f"{source_item.text()[:source_item.cursorPosition()]}{clipboard.text()}{source_item.text()[source_item.cursorPosition():]}"))
+                    menu_action.setShortcut(QKeySequence(Qt.Key_P))
+                if item_text_length>0:
+                    menu.addSeparator()
+                    menu_action=menu.addAction("Clea&r")
+                    menu_action.setShortcut(QKeySequence(Qt.Key_R))
+                    menu_action.triggered.connect(lambda:ScryptCalc.UI.Main_Window.purge_textbox_data(source_item))
+
+                item_text_length=-1
+                menu.exec_(QCursor.pos())
+                
+                while len(menu.actions())>0:
+                    action=menu.actions()[0]
+                    menu.removeAction(action)
+                    action.deleteLater()
+                    del action
+                    action=None
+                menu.deleteLater()
+                del menu
+                menu=None
+                Cleanup_Memory()
+                source_item.setFocus()
                 return
 
         def __init__(self,input_signaller,input_scrypt_calculator,input_settings=None):
