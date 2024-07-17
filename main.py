@@ -795,10 +795,11 @@ class ScryptCalc(object):
                     menu_action=menu.addAction("Clea&r")
                     menu_action.setShortcut(QKeySequence(Qt.Key_R))
                     menu_action.triggered.connect(lambda:ScryptCalc.UI.Main_Window.purge_textbox_data(source_item))
-
+                    
                 item_text_length=-1
-                menu.exec_(QCursor.pos())
-                
+                if len(menu.actions())>0:
+                    menu.exec_(QCursor.pos())
+                    
                 while len(menu.actions())>0:
                     action=menu.actions()[0]
                     menu.removeAction(action)
