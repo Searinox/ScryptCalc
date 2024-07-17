@@ -291,6 +291,7 @@ class ScryptCalc(object):
                 self.spinbox_N_exponent.setRange(ScryptCalc.PARAM_N_EXPONENT_MIN,ScryptCalc.PARAM_N_EXPONENT_MAX)
                 self.spinbox_N_exponent.setFont(self.font_arial)
                 self.spinbox_N_exponent.setValue(ScryptCalc.DEFAULTPARAM_N_EXPONENT)
+                self.spinbox_N_exponent.setContextMenuPolicy(Qt.NoContextMenu)
 
                 self.label_R=QLabel(self)
                 self.label_R.setGeometry(10*self.UI_scale,140*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
@@ -302,6 +303,7 @@ class ScryptCalc(object):
                 self.spinbox_R.setRange(ScryptCalc.PARAM_R_MIN,ScryptCalc.PARAM_R_MAX)
                 self.spinbox_R.setFont(self.font_arial)
                 self.spinbox_R.setValue(ScryptCalc.DEFAULTPARAM_R)
+                self.spinbox_R.setContextMenuPolicy(Qt.NoContextMenu)
 
                 self.label_P=QLabel(self)
                 self.label_P.setGeometry(10*self.UI_scale,165*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
@@ -313,6 +315,7 @@ class ScryptCalc(object):
                 self.spinbox_P.setRange(ScryptCalc.PARAM_P_MIN,ScryptCalc.PARAM_P_MAX)
                 self.spinbox_P.setFont(self.font_arial)
                 self.spinbox_P.setValue(ScryptCalc.DEFAULTPARAM_P)
+                self.spinbox_P.setContextMenuPolicy(Qt.NoContextMenu)
 
                 self.label_length=QLabel(self)
                 self.label_length.setGeometry(10*self.UI_scale,190*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
@@ -324,6 +327,7 @@ class ScryptCalc(object):
                 self.spinbox_length.setRange(1,ScryptCalc.PARAM_LENGTH_MAX)
                 self.spinbox_length.setFont(self.font_arial)
                 self.spinbox_length.setValue(ScryptCalc.DEFAULTPARAM_LENGTH)
+                self.spinbox_length.setContextMenuPolicy(Qt.NoContextMenu)
 
                 self.label_result_format=QLabel(self)
                 self.label_result_format.setGeometry(10*self.UI_scale,215*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
@@ -452,9 +456,10 @@ class ScryptCalc(object):
                 return
             
             def new_textedit_result_widget(self):
+                self.setUpdatesEnabled(False)
+                
                 if self.textedit_result is not None:
                     enabled_state=self.textedit_result.isEnabled()
-                    self.setUpdatesEnabled(False)
                     self.textedit_result.hide()
                     cursor=self.textedit_result.textCursor()
                     cursor.movePosition(QTextCursor.End)
@@ -489,11 +494,14 @@ class ScryptCalc(object):
                 document.setUseDesignMetrics(False)
                 document.setMaximumBlockCount(0)
                 self.textedit_result.setAcceptDrops(False)
+                self.textedit_result.setContextMenuPolicy(Qt.CustomContextMenu)
+                self.textedit_result.customContextMenuRequested.connect(lambda:ScryptCalc.UI.Main_Window.text_edit_context_menu_show(self.textedit_result))
                 
                 self.textedit_result.setEnabled(enabled_state)
                 self.textedit_result.show()
-                self.setUpdatesEnabled(True)
                 enabled_state=False
+                
+                self.setUpdatesEnabled(True)
                 Cleanup_Memory()
                 return
             
@@ -803,16 +811,57 @@ class ScryptCalc(object):
                 while len(menu.actions())>0:
                     action=menu.actions()[0]
                     menu.removeAction(action)
-                    action.deleteLater()
                     del action
                     action=None
-                menu.deleteLater()
                 del menu
                 menu=None
                 Cleanup_Memory()
                 source_item.setFocus()
                 return
         
+            @staticmethod
+            def text_edit_context_menu_show(source_item):
+                parent=source_item.parentWidget()
+                clipboard=parent.clipboard
+
+                menu=QMenu(parent)
+                document=source_item.document()
+                item_text_length=len(document.toRawText())
+                if item_text_length>0:
+                    menu_action=menu.addAction("Select &All")
+                    menu_action.setShortcut(QKeySequence(Qt.Key_A))
+                    menu_action.triggered.connect(lambda:source_item.selectAll())
+                    cursor=source_item.textCursor()
+                    cursor_start=cursor.selectionStart()
+                    cursor_end=cursor.selectionEnd()
+                    if cursor_start!=-1 and cursor_end!=-1 and cursor_start<cursor_end:
+                        menu.addSeparator()
+                        menu_action=menu.addAction("&Copy Selection")
+                        menu_action.setShortcut(QKeySequence(Qt.Key_C))
+                        menu_action.triggered.connect(lambda:parent.set_clipboard_text(document.toRawText()[cursor_start:cursor_end]))
+                        menu.addSeparator()
+                        menu_action=menu.addAction("D&eselect")
+                        menu_action.triggered.connect(lambda:[cursor.movePosition(QTextCursor.End),source_item.setTextCursor(cursor)])
+                        menu_action.setShortcut(QKeySequence(Qt.Key_E))
+                    cursor_start=-1
+                    cursor_end=-1
+                    cursor=None
+                    
+                item_text_length=-1
+                if len(menu.actions())>0:
+                    menu.exec_(QCursor.pos())
+                    
+                while len(menu.actions())>0:
+                    action=menu.actions()[0]
+                    menu.removeAction(action)
+                    del action
+                    action=None
+                del menu
+                menu=None
+                Cleanup_Memory()
+                source_item.setFocus()
+                return
+
             @staticmethod
             def line_edit_context_menu_cut_selection(parent,source_item):
                 parent.set_clipboard_text(source_item.selectedText())
