@@ -845,12 +845,12 @@ class ScryptCalc(object):
                         menu_action.setShortcut(QKeySequence(Qt.Key_E))
                     cursor_start=-1
                     cursor_end=-1
-                    cursor=None
                     
                 item_text_length=-1
                 if len(menu.actions())>0:
                     menu.exec_(QCursor.pos())
                     
+                cursor=None
                 while len(menu.actions())>0:
                     action=menu.actions()[0]
                     menu.removeAction(action)
