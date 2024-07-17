@@ -50,7 +50,7 @@ class ScryptCalc(object):
     PARAM_R_MIN=1
     PARAM_R_MAX=128
     PARAM_P_MIN=1
-    PARAM_P_MAX=128
+    PARAM_P_MAX=192
     PARAM_LENGTH_MAX=192
 
     DEFAULTPARAM_N_EXPONENT=18
@@ -241,9 +241,9 @@ class ScryptCalc(object):
                 self.timer_update_clipboard.setSingleShot(True)
 
                 self.font_arial=QFont("Arial")
-                self.font_arial.setPointSize(round(9*self.UI_scale))
+                self.font_arial.setPointSize(9)
                 self.font_consolas=QFont("Consolas")
-                self.font_consolas.setPointSize(round(10*self.UI_scale))
+                self.font_consolas.setPointSize(10)
 
                 self.setFixedSize(400*self.UI_scale,430*self.UI_scale)
                 self.setWindowTitle("ScryptCalc")
@@ -411,9 +411,9 @@ class ScryptCalc(object):
                 
                 self.textbox_input.textChanged.connect(self.textbox_input_onchange)
                 self.textbox_input.returnPressed.connect(self.begin_compute)
-                self.textbox_input.customContextMenuRequested.connect(lambda event:ScryptCalc.UI.Main_Window.line_edit_context_menu_show(event,self.textbox_input))
+                self.textbox_input.customContextMenuRequested.connect(lambda:ScryptCalc.UI.Main_Window.line_edit_context_menu_show(self.textbox_input))
                 self.textbox_salt.textChanged.connect(self.textbox_salt_onchange)
-                self.textbox_salt.customContextMenuRequested.connect(lambda event:ScryptCalc.UI.Main_Window.line_edit_context_menu_show(event,self.textbox_salt))
+                self.textbox_salt.customContextMenuRequested.connect(lambda:ScryptCalc.UI.Main_Window.line_edit_context_menu_show(self.textbox_salt))
                 self.spinbox_N_exponent.valueChanged.connect(self.spinbox_N_exponent_onchange)
                 self.spinbox_R.valueChanged.connect(self.spinbox_R_onchange)
                 self.combobox_result_format.currentIndexChanged.connect(self.combobox_result_format_onindexchanged)
@@ -757,7 +757,7 @@ class ScryptCalc(object):
                 return
 
             @staticmethod
-            def line_edit_context_menu_show(event,source_item):
+            def line_edit_context_menu_show(source_item):
                 parent=source_item.parentWidget()
                 clipboard=parent.clipboard
                 
