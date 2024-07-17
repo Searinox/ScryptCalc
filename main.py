@@ -774,9 +774,9 @@ class ScryptCalc(object):
                         menu_action.triggered.connect(lambda:parent.set_clipboard_text(source_item.selectedText()))
                         menu_action=menu.addAction("Cu&t Selection")
                         menu_action.setShortcut(QKeySequence(Qt.Key_T))
-                        menu_action.triggered.connect(lambda:[parent.set_clipboard_text(source_item.selectedText()),source_item.setText(f"{source_item.text()[:source_item.selectionStart()]}{source_item.text()[source_item.selectionEnd():]}")])
+                        menu_action.triggered.connect(lambda:ScryptCalc.UI.Main_Window.line_edit_context_menu_cut_selection(parent,source_item))
                         menu_action=menu.addAction("&Delete Selection")
-                        menu_action.triggered.connect(lambda:source_item.setText(f"{source_item.text()[:source_item.selectionStart()]}{source_item.text()[source_item.selectionEnd():]}"))
+                        menu_action.triggered.connect(lambda:ScryptCalc.UI.Main_Window.line_edit_context_menu_delete_selection(source_item))
                         menu_action.setShortcut(QKeySequence(Qt.Key_D))
                         menu.addSeparator()
                         menu_action=menu.addAction("D&eselect")
@@ -785,10 +785,10 @@ class ScryptCalc(object):
                 if len(clipboard.text())>0:
                     if source_item.hasSelectedText()==True:
                         menu_action=menu.addAction("&Paste Over Selection")
-                        menu_action.triggered.connect(lambda:source_item.setText(f"{source_item.text()[:source_item.selectionStart()]}{clipboard.text()}{source_item.text()[source_item.selectionEnd():]}"))
+                        menu_action.triggered.connect(lambda:ScryptCalc.UI.Main_Window.line_edit_context_menu_paste_over_selection(source_item,clipboard))
                     else:
                         menu_action=menu.addAction("&Paste")
-                        menu_action.triggered.connect(lambda:source_item.setText(f"{source_item.text()[:source_item.cursorPosition()]}{clipboard.text()}{source_item.text()[source_item.cursorPosition():]}"))
+                        menu_action.triggered.connect(lambda:ScryptCalc.UI.Main_Window.line_edit_context_menu_paste(source_item,clipboard))
                     menu_action.setShortcut(QKeySequence(Qt.Key_P))
                 if item_text_length>0:
                     menu.addSeparator()
@@ -810,6 +810,35 @@ class ScryptCalc(object):
                 menu=None
                 Cleanup_Memory()
                 source_item.setFocus()
+                return
+        
+            @staticmethod
+            def line_edit_context_menu_cut_selection(parent,source_item):
+                parent.set_clipboard_text(source_item.selectedText())
+                old_position=source_item.cursorPosition()
+                source_item.setText(f"{source_item.text()[:source_item.selectionStart()]}{source_item.text()[source_item.selectionEnd():]}")
+                source_item.setCursorPosition(old_position)
+                return
+    
+            @staticmethod
+            def line_edit_context_menu_delete_selection(source_item):
+                old_selection_start=source_item.selectionStart()
+                source_item.setText(f"{source_item.text()[:source_item.selectionStart()]}{source_item.text()[source_item.selectionEnd():]}")
+                source_item.setCursorPosition(old_selection_start)
+                return
+    
+            @staticmethod
+            def line_edit_context_menu_paste_over_selection(source_item,clipboard):
+                old_selection_start=source_item.selectionStart()
+                source_item.setText(f"{source_item.text()[:source_item.selectionStart()]}{clipboard.text()}{source_item.text()[source_item.selectionEnd():]}")
+                source_item.setCursorPosition(old_selection_start+len(clipboard.text()))
+                return
+    
+            @staticmethod
+            def line_edit_context_menu_paste(source_item,clipboard):
+                old_position=source_item.cursorPosition()
+                source_item.setText(f"{source_item.text()[:source_item.cursorPosition()]}{clipboard.text()}{source_item.text()[source_item.cursorPosition():]}")
+                source_item.setCursorPosition(old_position+len(clipboard.text()))
                 return
 
         def __init__(self,input_signaller,input_scrypt_calculator,input_settings=None):
