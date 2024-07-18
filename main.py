@@ -229,7 +229,6 @@ class ScryptCalc(object):
                 self.input_enabled=False
                 self.waiting_for_result=False
 
-                self.setAttribute(Qt.WA_DeleteOnClose,True)
                 self.setWindowIcon(self.style().standardIcon(QStyle.SP_DialogSaveButton))
 
                 self.UI_scale=self.logicalDpiX()/96.0
@@ -481,7 +480,6 @@ class ScryptCalc(object):
                     enabled_state=True
 
                 self.textedit_result=ScryptCalc.UI.Text_Editor(self)
-                self.textedit_result.setAttribute(Qt.WA_DeleteOnClose,True) 
                 self.textedit_result.setReadOnly(True)
                 self.textedit_result.setGeometry(5*self.UI_scale,314*self.UI_scale,328*self.UI_scale,110*self.UI_scale)
                 self.textedit_result.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
@@ -771,7 +769,6 @@ class ScryptCalc(object):
                 clipboard=parent.clipboard
                 
                 menu=QMenu(parent)
-                menu.setAttribute(Qt.WA_DeleteOnClose,True)
                 item_text_length=len(source_item.text())
                 if item_text_length>0:
                     menu_action=menu.addAction("Select &All")
@@ -817,12 +814,13 @@ class ScryptCalc(object):
                 item_text_length=-1
                 if len(menu.actions())>0:
                     menu.exec_(QCursor.pos())
-                    
+
                 while len(menu.actions())>0:
                     action=menu.actions()[0]
                     menu.removeAction(action)
                     del action
                     action=None
+                menu.destroy()
                 del menu
                 menu=None
                 Cleanup_Memory()
@@ -834,7 +832,6 @@ class ScryptCalc(object):
                 parent=source_item.parentWidget()
 
                 menu=QMenu(parent)
-                menu.setAttribute(Qt.WA_DeleteOnClose,True)
                 document=source_item.document()
                 item_text_length=len(document.toRawText())
                 if item_text_length>0:
@@ -869,6 +866,7 @@ class ScryptCalc(object):
                     menu.removeAction(action)
                     del action
                     action=None
+                menu.destroy()
                 del menu
                 menu=None
                 Cleanup_Memory()
