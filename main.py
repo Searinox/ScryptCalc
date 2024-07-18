@@ -770,6 +770,7 @@ class ScryptCalc(object):
                 clipboard=parent.clipboard
                 
                 menu=QMenu(parent)
+                menu.setAttribute(Qt.WA_DeleteOnClose)
                 item_text_length=len(source_item.text())
                 if item_text_length>0:
                     menu_action=menu.addAction("Select &All")
@@ -822,9 +823,9 @@ class ScryptCalc(object):
             @staticmethod
             def text_edit_context_menu_show(source_item):
                 parent=source_item.parentWidget()
-                clipboard=parent.clipboard
 
                 menu=QMenu(parent)
+                menu.setAttribute(Qt.WA_DeleteOnClose)
                 document=source_item.document()
                 item_text_length=len(document.toRawText())
                 if item_text_length>0:
