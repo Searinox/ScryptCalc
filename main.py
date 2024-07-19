@@ -368,6 +368,8 @@ class ScryptCalc(object):
                 self.textedit_result=None
                 self.result_bytes=bytes()
                 
+                self.context_menu=QMenu(self)
+
                 self.clipboard=QApplication.clipboard()
                 
                 self.new_textedit_result_widget()
@@ -415,9 +417,9 @@ class ScryptCalc(object):
                 
                 self.textbox_input.textChanged.connect(self.textbox_input_onchange)
                 self.textbox_input.returnPressed.connect(self.begin_compute)
-                self.textbox_input.customContextMenuRequested.connect(lambda:ScryptCalc.UI.Main_Window.line_edit_context_menu_show(self.textbox_input,self.font_arial))
+                self.textbox_input.customContextMenuRequested.connect(lambda:self.line_edit_context_menu_show(self.textbox_input))
                 self.textbox_salt.textChanged.connect(self.textbox_salt_onchange)
-                self.textbox_salt.customContextMenuRequested.connect(lambda:ScryptCalc.UI.Main_Window.line_edit_context_menu_show(self.textbox_salt,self.font_arial))
+                self.textbox_salt.customContextMenuRequested.connect(lambda:self.line_edit_context_menu_show(self.textbox_salt))
                 self.spinbox_N_exponent.valueChanged.connect(self.spinbox_N_exponent_onchange)
                 self.spinbox_R.valueChanged.connect(self.spinbox_R_onchange)
                 self.combobox_result_format.currentIndexChanged.connect(self.combobox_result_format_onindexchanged)
@@ -464,14 +466,11 @@ class ScryptCalc(object):
                     cursor=self.textedit_result.textCursor()
                     cursor.movePosition(QTextCursor.End)
                     self.textedit_result.setTextCursor(cursor)
-                    del cursor
                     cursor=None
                     self.textedit_result.document().clearUndoRedoStacks()
                     self.textedit_result.document().setPlainText(ScryptCalc.PURGE_VALUE_RESULT)
                     self.textedit_result.document().setPlainText(u"")
                     self.textedit_result.document().clear()
-                    self.textedit_result.setDocument(None)
-                    self.textedit_result.setParent(None)
                     self.textedit_result.destroy()
                     del self.textedit_result
                     self.textedit_result=None
@@ -494,7 +493,7 @@ class ScryptCalc(object):
                 document.setMaximumBlockCount(0)
                 self.textedit_result.setAcceptDrops(False)
                 self.textedit_result.setContextMenuPolicy(Qt.CustomContextMenu)
-                self.textedit_result.customContextMenuRequested.connect(lambda:ScryptCalc.UI.Main_Window.text_edit_context_menu_show(self.textedit_result,self.font_arial))
+                self.textedit_result.customContextMenuRequested.connect(self.result_context_menu_show)
                 
                 self.textedit_result.setEnabled(enabled_state)
                 self.textedit_result.show()
@@ -675,11 +674,9 @@ class ScryptCalc(object):
                 self.spinbox_R.setValue(1)
                 self.spinbox_P.setValue(1)
                 self.spinbox_length.setValue(1)
-                self.textbox_input.setParent(None)
                 self.textbox_input.destroy()
                 del self.textbox_input
                 self.textbox_input=None
-                self.textbox_salt.setParent(None)
                 self.textbox_salt.destroy()
                 del self.textbox_salt
                 self.textbox_salt=None
@@ -763,114 +760,98 @@ class ScryptCalc(object):
                 Cleanup_Memory()
                 return
 
-            @staticmethod
-            def line_edit_context_menu_show(source_item,context_menu_font):
-                parent=source_item.parentWidget()
-                clipboard=parent.clipboard
+            def line_edit_context_menu_show(self,source_item):
+                self.context_menu.clear()
                 
-                menu=QMenu(parent)
                 item_text_length=len(source_item.text())
                 if item_text_length>0:
-                    menu_action=menu.addAction("Select &All")
-                    menu_action.setFont(context_menu_font)
+                    menu_action=self.context_menu.addAction("Select &All")
+                    menu_action.setFont(self.font_arial)
                     menu_action.setShortcut(QKeySequence(Qt.Key_A))
                     menu_action.triggered.connect(lambda:source_item.selectAll())
                     if source_item.hasSelectedText()==True:
-                        menu.addSeparator()
-                        menu_action=menu.addAction("&Copy Selection")
-                        menu_action.setFont(context_menu_font)
+                        self.context_menu.addSeparator()
+                        menu_action=self.context_menu.addAction("&Copy Selection")
+                        menu_action.setFont(self.font_arial)
                         menu_action.setShortcut(QKeySequence(Qt.Key_C))
-                        menu_action.triggered.connect(lambda:parent.set_clipboard_text(source_item.selectedText()))
-                        menu_action=menu.addAction("Cu&t Selection")
-                        menu_action.setFont(context_menu_font)
+                        menu_action.triggered.connect(lambda:self.set_clipboard_text(source_item.selectedText()))
+                        menu_action=self.context_menu.addAction("Cu&t Selection")
+                        menu_action.setFont(self.font_arial)
                         menu_action.setShortcut(QKeySequence(Qt.Key_T))
-                        menu_action.triggered.connect(lambda:ScryptCalc.UI.Main_Window.line_edit_context_menu_cut_selection(parent,source_item))
-                        menu_action=menu.addAction("&Delete Selection")
-                        menu_action.setFont(context_menu_font)
+                        menu_action.triggered.connect(lambda:ScryptCalc.UI.Main_Window.line_edit_context_menu_cut_selection(self,source_item))
+                        menu_action=self.context_menu.addAction("&Delete Selection")
+                        menu_action.setFont(self.font_arial)
                         menu_action.triggered.connect(lambda:ScryptCalc.UI.Main_Window.line_edit_context_menu_delete_selection(source_item))
                         menu_action.setShortcut(QKeySequence(Qt.Key_D))
-                        menu.addSeparator()
-                        menu_action=menu.addAction("D&eselect")
-                        menu_action.setFont(context_menu_font)
+                        self.context_menu.addSeparator()
+                        menu_action=self.context_menu.addAction("D&eselect")
+                        menu_action.setFont(self.font_arial)
                         menu_action.triggered.connect(lambda:source_item.deselect())
                         menu_action.setShortcut(QKeySequence(Qt.Key_E))
-                if len(clipboard.text())>0:
+                if len(self.clipboard.text())>0:
                     if source_item.hasSelectedText()==True:
-                        menu_action=menu.addAction("&Paste Over Selection")
-                        menu_action.setFont(context_menu_font)
-                        menu_action.triggered.connect(lambda:ScryptCalc.UI.Main_Window.line_edit_context_menu_paste_over_selection(source_item,clipboard))
+                        menu_action=self.context_menu.addAction("&Paste Over Selection")
+                        menu_action.setFont(self.font_arial)
+                        menu_action.triggered.connect(lambda:ScryptCalc.UI.Main_Window.line_edit_context_menu_paste_over_selection(source_item,self.clipboard))
                     else:
-                        menu_action=menu.addAction("&Paste")
-                        menu_action.setFont(context_menu_font)
-                        menu_action.triggered.connect(lambda:ScryptCalc.UI.Main_Window.line_edit_context_menu_paste(source_item,clipboard))
+                        menu_action=self.context_menu.addAction("&Paste")
+                        menu_action.setFont(self.font_arial)
+                        menu_action.triggered.connect(lambda:ScryptCalc.UI.Main_Window.line_edit_context_menu_paste(source_item,self.clipboard))
                     menu_action.setShortcut(QKeySequence(Qt.Key_P))
                 if item_text_length>0:
-                    menu.addSeparator()
-                    menu_action=menu.addAction("Clea&r")
-                    menu_action.setFont(context_menu_font)
+                    self.context_menu.addSeparator()
+                    menu_action=self.context_menu.addAction("Clea&r")
+                    menu_action.setFont(self.font_arial)
                     menu_action.setShortcut(QKeySequence(Qt.Key_R))
                     menu_action.triggered.connect(lambda:ScryptCalc.UI.Main_Window.purge_textbox_data(source_item))
-                    
+                
                 item_text_length=-1
-                if len(menu.actions())>0:
-                    menu.exec_(QCursor.pos())
-
-                while len(menu.actions())>0:
-                    action=menu.actions()[0]
-                    menu.removeAction(action)
-                    del action
-                    action=None
-                menu.destroy()
-                del menu
-                menu=None
+                if len(self.context_menu.actions())>0:
+                    self.context_menu.exec_(QCursor.pos())
+                    self.context_menu.close()
+                    self.context_menu.clear()
+                    
                 Cleanup_Memory()
                 source_item.setFocus()
                 return
         
-            @staticmethod
-            def text_edit_context_menu_show(source_item,context_menu_font):
-                parent=source_item.parentWidget()
+            def result_context_menu_show(self):
+                self.context_menu.clear()
 
-                menu=QMenu(parent)
-                document=source_item.document()
+                document=self.textedit_result.document()
+                cursor=self.textedit_result.textCursor()
+                cursor_start=cursor.selectionStart()
+                cursor_end=cursor.selectionEnd()
                 item_text_length=len(document.toRawText())
                 if item_text_length>0:
-                    menu_action=menu.addAction("Select &All")
-                    menu_action.setFont(context_menu_font)
+                    menu_action=self.context_menu.addAction("Select &All")
+                    menu_action.setFont(self.font_arial)
                     menu_action.setShortcut(QKeySequence(Qt.Key_A))
-                    menu_action.triggered.connect(lambda:source_item.selectAll())
-                    cursor=source_item.textCursor()
-                    cursor_start=cursor.selectionStart()
-                    cursor_end=cursor.selectionEnd()
+                    menu_action.triggered.connect(lambda:self.textedit_result.selectAll())
                     if cursor_start!=-1 and cursor_end!=-1 and cursor_start<cursor_end:
-                        menu.addSeparator()
-                        menu_action=menu.addAction("&Copy Selection")
-                        menu_action.setFont(context_menu_font)
+                        self.context_menu.addSeparator()
+                        menu_action=self.context_menu.addAction("&Copy Selection")
+                        menu_action.setFont(self.font_arial)
                         menu_action.setShortcut(QKeySequence(Qt.Key_C))
-                        menu_action.triggered.connect(lambda:parent.set_clipboard_text(document.toRawText()[cursor_start:cursor_end]))
-                        menu.addSeparator()
-                        menu_action=menu.addAction("D&eselect")
-                        menu_action.setFont(context_menu_font)
-                        menu_action.triggered.connect(lambda:[cursor.movePosition(QTextCursor.End),source_item.setTextCursor(cursor)])
+                        menu_action.triggered.connect(lambda:self.set_clipboard_text(document.toRawText()[cursor_start:cursor_end]))
+                        self.context_menu.addSeparator()
+                        menu_action=self.context_menu.addAction("D&eselect")
+                        menu_action.setFont(self.font_arial)
+                        menu_action.triggered.connect(lambda:[cursor.movePosition(QTextCursor.End),self.textedit_result.setTextCursor(cursor)])
                         menu_action.setShortcut(QKeySequence(Qt.Key_E))
-                    cursor_start=-1
-                    cursor_end=-1
-                    
+                        
                 item_text_length=-1
-                if len(menu.actions())>0:
-                    menu.exec_(QCursor.pos())
+                if len(self.context_menu.actions())>0:
+                    self.context_menu.exec_(QCursor.pos())
+                    self.context_menu.close()
+                    self.context_menu.clear()
                     
+                document=None
                 cursor=None
-                while len(menu.actions())>0:
-                    action=menu.actions()[0]
-                    menu.removeAction(action)
-                    del action
-                    action=None
-                menu.destroy()
-                del menu
-                menu=None
+                cursor_start=-1
+                cursor_end=-1
                 Cleanup_Memory()
-                source_item.setFocus()
+                self.textedit_result.setFocus()
                 return
 
             @staticmethod
