@@ -799,7 +799,7 @@ class ScryptCalc(object):
                     menu_action=self.context_menu.addAction("Clea&r")
                     menu_action.setFont(self.font_general)
                     menu_action.setShortcut(QKeySequence(Qt.Key_R))
-                    menu_action.triggered.connect(lambda:[ScryptCalc.UI.Main_Window.purge_lineedit_data(source_item),ScryptCalc.UI.Main_Window.validate_value(validating_item)])
+                    menu_action.triggered.connect(lambda:ScryptCalc.UI.Main_Window.purge_lineedit_data(source_item))
                 
                 item_text_length=-1
                 if len(self.context_menu.actions())>0:
