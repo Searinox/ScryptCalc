@@ -788,18 +788,18 @@ class ScryptCalc(object):
                     if source_item.hasSelectedText()==True:
                         menu_action=self.context_menu.addAction("&Paste Over Selection")
                         menu_action.setFont(self.font_general)
-                        menu_action.triggered.connect(lambda:[ScryptCalc.UI.Main_Window.lineedit_context_menu_paste_over_selection(source_item,self.clipboard),ScryptCalc.UI.Main_Window.validate_item(validating_item)])
+                        menu_action.triggered.connect(lambda:[ScryptCalc.UI.Main_Window.lineedit_context_menu_paste_over_selection(source_item,self.clipboard),ScryptCalc.UI.Main_Window.validate_value(validating_item)])
                     else:
                         menu_action=self.context_menu.addAction("&Paste")
                         menu_action.setFont(self.font_general)
-                        menu_action.triggered.connect(lambda:[ScryptCalc.UI.Main_Window.lineedit_context_menu_paste(source_item,self.clipboard),ScryptCalc.UI.Main_Window.validate_item(validating_item)])
+                        menu_action.triggered.connect(lambda:[ScryptCalc.UI.Main_Window.lineedit_context_menu_paste(source_item,self.clipboard),ScryptCalc.UI.Main_Window.validate_value(validating_item)])
                         menu_action.setShortcut(QKeySequence(Qt.Key_P))
                 if item_text_length>0:
                     self.context_menu.addSeparator()
                     menu_action=self.context_menu.addAction("Clea&r")
                     menu_action.setFont(self.font_general)
                     menu_action.setShortcut(QKeySequence(Qt.Key_R))
-                    menu_action.triggered.connect(lambda:[ScryptCalc.UI.Main_Window.purge_lineedit_data(source_item),ScryptCalc.UI.Main_Window.validate_item(validating_item)])
+                    menu_action.triggered.connect(lambda:[ScryptCalc.UI.Main_Window.purge_lineedit_data(source_item),ScryptCalc.UI.Main_Window.validate_value(validating_item)])
                 
                 item_text_length=-1
                 if len(self.context_menu.actions())>0:
@@ -880,7 +880,7 @@ class ScryptCalc(object):
                 return
 
             @staticmethod
-            def validate_item(validating_item):
+            def validate_value(validating_item):
                 if validating_item is not None:
                     validating_item.clearFocus()
                     validating_item.setFocus()
