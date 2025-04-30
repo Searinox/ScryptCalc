@@ -693,11 +693,7 @@ class ScryptCalc(object):
                 return
             
             def button_copy_onclick(self):
-                result_text=self.textedit_result.document().toRawText()
-                self.set_clipboard_text(result_text)
-                result_text=ScryptCalc.PURGE_VALUE_RESULT
-                del result_text
-                result_text=None
+                self.set_clipboard_text(self.stored_result_text)
                 Cleanup_Memory()
                 return
 
