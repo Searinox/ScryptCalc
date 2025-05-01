@@ -200,16 +200,11 @@ class ScryptCalc(object):
         qtmsg_blacklist_startswith=["WARNING: QApplication was not created in the main()","OleSetClipboard: Failed to set mime data (text/plain) on clipboard: COM error"]
 
         class Text_Editor(QPlainTextEdit):
-            def __init__(self,input_parent):
-                self.parent=input_parent
-                super(ScryptCalc.UI.Text_Editor,self).__init__(self.parent)
-                return
-            
             def createMimeDataFromSelection(self):
                 cursor=self.textCursor()
                 start=cursor.selectionStart()
                 end=cursor.selectionEnd()
-                selected_text=self.parent.stored_result_text[start:end]
+                selected_text=self.parentWidget().stored_result_text[start:end]
                 self.parentWidget().set_clipboard_text(selected_text)
                 start=-1
                 end=-1
@@ -238,6 +233,7 @@ class ScryptCalc(object):
                 self.signal_response_calls={"compute_done":self.receive_result}
                 
                 self.pending_clipboard_text=None
+                self.pending_post_clipboard_calls=[]
                 
                 self.timer_update_clipboard=QTimer(self)
                 self.timer_update_clipboard.timeout.connect(self.set_clipboard_text_timer_event)
@@ -248,7 +244,7 @@ class ScryptCalc(object):
                 self.font_monospace=QFont("Consolas")
                 self.font_monospace.setPointSize(10)
 
-                self.setFixedSize(400*self.UI_scale,500*self.UI_scale)
+                self.setFixedSize(400*self.UI_scale,492*self.UI_scale)
                 self.setWindowTitle("ScryptCalc")
                 self.setWindowFlags(self.windowFlags()|Qt.MSWindowsFixedSizeDialogHint)
                 
@@ -265,102 +261,106 @@ class ScryptCalc(object):
                 ScryptCalc.APP_ICON_BASE64=None
 
                 self.label_input=QLabel(self)
-                self.label_input.setGeometry(10*self.UI_scale,5*self.UI_scale,100*self.UI_scale,26*self.UI_scale)
-                self.label_input.setText("Input:")
+                self.label_input.setGeometry(10*self.UI_scale,0,120*self.UI_scale,26*self.UI_scale)
+                self.label_input.setText("Input (password):")
                 self.label_input.setFont(self.font_general)
 
                 self.textbox_input=QLineEdit(self)
-                self.textbox_input.setGeometry(10*self.UI_scale,25*self.UI_scale,380*self.UI_scale,26*self.UI_scale)
+                self.textbox_input.setGeometry(10*self.UI_scale,20*self.UI_scale,380*self.UI_scale,26*self.UI_scale)
                 self.textbox_input.setFont(self.font_monospace)
                 self.textbox_input.setMaxLength(ScryptCalc.PARAM_INPUT_MAX)
                 self.textbox_input.setAcceptDrops(False)
                 self.textbox_input.setContextMenuPolicy(Qt.CustomContextMenu)
 
                 self.checkbox_hide_input=QCheckBox(self)
-                self.checkbox_hide_input.setGeometry(150*self.UI_scale,48*self.UI_scale,250*self.UI_scale,26*self.UI_scale)
+                self.checkbox_hide_input.setGeometry(150*self.UI_scale,43*self.UI_scale,250*self.UI_scale,26*self.UI_scale)
                 self.checkbox_hide_input.setText("Hide input")
                 self.checkbox_hide_input.setFont(self.font_general)
 
                 self.label_salt=QLabel(self)
-                self.label_salt.setGeometry(10*self.UI_scale,61*self.UI_scale,100*self.UI_scale,26*self.UI_scale)
+                self.label_salt.setGeometry(10*self.UI_scale,56*self.UI_scale,100*self.UI_scale,26*self.UI_scale)
                 self.label_salt.setText("Salt:")
                 self.label_salt.setFont(self.font_general)
 
                 self.textbox_salt=QLineEdit(self)
-                self.textbox_salt.setGeometry(10*self.UI_scale,81*self.UI_scale,380*self.UI_scale,26*self.UI_scale)
+                self.textbox_salt.setGeometry(10*self.UI_scale,76*self.UI_scale,380*self.UI_scale,26*self.UI_scale)
                 self.textbox_salt.setFont(self.font_monospace)
                 self.textbox_salt.setMaxLength(ScryptCalc.PARAM_SALT_MAX)
                 self.textbox_salt.setAcceptDrops(False)
                 self.textbox_salt.setContextMenuPolicy(Qt.CustomContextMenu)
 
                 self.checkbox_hide_salt=QCheckBox(self)
-                self.checkbox_hide_salt.setGeometry(150*self.UI_scale,104*self.UI_scale,250*self.UI_scale,26*self.UI_scale)
+                self.checkbox_hide_salt.setGeometry(150*self.UI_scale,99*self.UI_scale,250*self.UI_scale,26*self.UI_scale)
                 self.checkbox_hide_salt.setText("Hide salt")
                 self.checkbox_hide_salt.setFont(self.font_general)
 
                 self.label_N_exponent=QLabel(self)
-                self.label_N_exponent.setGeometry(10*self.UI_scale,135*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
-                self.label_N_exponent.setText("Rounds(N) exponent:")
+                self.label_N_exponent.setGeometry(10*self.UI_scale,130*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
+                self.label_N_exponent.setText("Rounds (N) exponent:")
                 self.label_N_exponent.setFont(self.font_general)
 
                 self.label_N_total=QLabel(self)
-                self.label_N_total.setGeometry(240*self.UI_scale,135*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
+                self.label_N_total.setGeometry(240*self.UI_scale,130*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
                 self.label_N_total.setFont(self.font_general)
 
                 self.label_memory_usage=QLabel(self)
-                self.label_memory_usage.setGeometry(240*self.UI_scale,160*self.UI_scale,200*self.UI_scale,26*self.UI_scale)
+                self.label_memory_usage.setGeometry(240*self.UI_scale,155*self.UI_scale,200*self.UI_scale,26*self.UI_scale)
                 self.label_memory_usage.setFont(self.font_general)
 
                 self.spinbox_N_exponent=QSpinBox(self)
-                self.spinbox_N_exponent.setGeometry(165*self.UI_scale,135*self.UI_scale,60*self.UI_scale,26*self.UI_scale)
+                self.spinbox_N_exponent.setGeometry(165*self.UI_scale,130*self.UI_scale,60*self.UI_scale,26*self.UI_scale)
                 self.spinbox_N_exponent.setRange(ScryptCalc.PARAM_N_EXPONENT_MIN,ScryptCalc.PARAM_N_EXPONENT_MAX)
                 self.spinbox_N_exponent.setFont(self.font_general)
                 self.spinbox_N_exponent.setValue(ScryptCalc.DEFAULTPARAM_N_EXPONENT)
                 self.spinbox_N_exponent.setContextMenuPolicy(Qt.CustomContextMenu)
 
                 self.label_R=QLabel(self)
-                self.label_R.setGeometry(10*self.UI_scale,160*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
-                self.label_R.setText("Memory factor(R):")
+                self.label_R.setGeometry(10*self.UI_scale,155*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
+                self.label_R.setText("Memory factor (R):")
                 self.label_R.setFont(self.font_general)
 
                 self.spinbox_R=QSpinBox(self)
-                self.spinbox_R.setGeometry(165*self.UI_scale,160*self.UI_scale,60*self.UI_scale,26*self.UI_scale)
+                self.spinbox_R.setGeometry(165*self.UI_scale,155*self.UI_scale,60*self.UI_scale,26*self.UI_scale)
                 self.spinbox_R.setRange(ScryptCalc.PARAM_R_MIN,ScryptCalc.PARAM_R_MAX)
                 self.spinbox_R.setFont(self.font_general)
                 self.spinbox_R.setValue(ScryptCalc.DEFAULTPARAM_R)
                 self.spinbox_R.setContextMenuPolicy(Qt.CustomContextMenu)
 
                 self.label_P=QLabel(self)
-                self.label_P.setGeometry(10*self.UI_scale,185*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
+                self.label_P.setGeometry(10*self.UI_scale,180*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
                 self.label_P.setFont(self.font_general)
-                self.label_P.setText("Parallelism factor(P):")
+                self.label_P.setText("Parallelism factor (P):")
 
                 self.spinbox_P=QSpinBox(self)
-                self.spinbox_P.setGeometry(165*self.UI_scale,185*self.UI_scale,60*self.UI_scale,26*self.UI_scale)
+                self.spinbox_P.setGeometry(165*self.UI_scale,180*self.UI_scale,60*self.UI_scale,26*self.UI_scale)
                 self.spinbox_P.setRange(ScryptCalc.PARAM_P_MIN,ScryptCalc.PARAM_P_MAX)
                 self.spinbox_P.setFont(self.font_general)
                 self.spinbox_P.setValue(ScryptCalc.DEFAULTPARAM_P)
                 self.spinbox_P.setContextMenuPolicy(Qt.CustomContextMenu)
 
                 self.label_length=QLabel(self)
-                self.label_length.setGeometry(10*self.UI_scale,210*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
-                self.label_length.setText("Result length(bytes):")
+                self.label_length.setGeometry(10*self.UI_scale,205*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
+                self.label_length.setText("Result length (bytes):")
                 self.label_length.setFont(self.font_general)
 
                 self.spinbox_length=QSpinBox(self)
-                self.spinbox_length.setGeometry(165*self.UI_scale,210*self.UI_scale,60*self.UI_scale,26*self.UI_scale)
+                self.spinbox_length.setGeometry(165*self.UI_scale,205*self.UI_scale,60*self.UI_scale,26*self.UI_scale)
                 self.spinbox_length.setRange(1,ScryptCalc.PARAM_LENGTH_MAX)
                 self.spinbox_length.setFont(self.font_general)
                 self.spinbox_length.setValue(ScryptCalc.DEFAULTPARAM_LENGTH)
                 self.spinbox_length.setContextMenuPolicy(Qt.CustomContextMenu)
 
+                self.label_output_bits=QLabel(self)
+                self.label_output_bits.setGeometry(240*self.UI_scale,205*self.UI_scale,80*self.UI_scale,26*self.UI_scale)
+                self.label_output_bits.setFont(self.font_general)
+
                 self.label_result_format=QLabel(self)
-                self.label_result_format.setGeometry(10*self.UI_scale,235*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
+                self.label_result_format.setGeometry(10*self.UI_scale,230*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
                 self.label_result_format.setText("Result output format:")
                 self.label_result_format.setFont(self.font_general)
 
                 self.combobox_result_format=QComboBox(self)
-                self.combobox_result_format.setGeometry(165*self.UI_scale,235*self.UI_scale,100*self.UI_scale,26*self.UI_scale)
+                self.combobox_result_format.setGeometry(165*self.UI_scale,230*self.UI_scale,90*self.UI_scale,26*self.UI_scale)
                 self.combobox_result_format.setFont(self.font_general)
                 self.combobox_result_format.addItem("bin")
                 self.combobox_result_format.addItem("hex")
@@ -370,23 +370,23 @@ class ScryptCalc(object):
                 format_index=self.combobox_result_format.findText(ScryptCalc.DEFAULTPARAM_FORMAT)
                 self.combobox_result_format.setCurrentIndex(format_index)
 
-                self.checkbox_clear_password_asap=QCheckBox(self)
-                self.checkbox_clear_password_asap.setGeometry(75*self.UI_scale,260*self.UI_scale,250*self.UI_scale,26*self.UI_scale)
-                self.checkbox_clear_password_asap.setText("Clear password input field on compute")
-                self.checkbox_clear_password_asap.setFont(self.font_general)
+                self.checkbox_clear_input_asap=QCheckBox(self)
+                self.checkbox_clear_input_asap.setGeometry(75*self.UI_scale,255*self.UI_scale,250*self.UI_scale,26*self.UI_scale)
+                self.checkbox_clear_input_asap.setText("Clear password input field on compute")
+                self.checkbox_clear_input_asap.setFont(self.font_general)
 
                 self.button_compute=QPushButton(self)
-                self.button_compute.setGeometry(150*self.UI_scale,287*self.UI_scale,90*self.UI_scale,26*self.UI_scale)
+                self.button_compute.setGeometry(150*self.UI_scale,282*self.UI_scale,90*self.UI_scale,26*self.UI_scale)
                 self.button_compute.setText("Compute")
                 self.button_compute.setFont(self.font_general)
 
                 self.label_result_info=QLabel(self)
-                self.label_result_info.setGeometry(40*self.UI_scale,310*self.UI_scale,240*self.UI_scale,26*self.UI_scale)
-                self.label_result_info.setText("Result:")
+                self.label_result_info.setGeometry(40*self.UI_scale,307*self.UI_scale,240*self.UI_scale,26*self.UI_scale)
+                self.label_result_info.setText("Result (derived key):")
                 self.label_result_info.setFont(self.font_general)
 
                 self.button_copy=QPushButton(self)
-                self.button_copy.setGeometry(336*self.UI_scale,361*self.UI_scale,60*self.UI_scale,52*self.UI_scale)
+                self.button_copy.setGeometry(336*self.UI_scale,341*self.UI_scale,60*self.UI_scale,52*self.UI_scale)
                 self.button_copy.setText("Copy\nresult")
                 self.button_copy.setFont(self.font_general)
 
@@ -395,7 +395,7 @@ class ScryptCalc(object):
                 
                 self.textedit_result=ScryptCalc.UI.Text_Editor(self)
                 self.textedit_result.setReadOnly(True)
-                self.textedit_result.setGeometry(5*self.UI_scale,334*self.UI_scale,328*self.UI_scale,110*self.UI_scale)
+                self.textedit_result.setGeometry(5*self.UI_scale,329*self.UI_scale,328*self.UI_scale,82*self.UI_scale)
                 self.textedit_result.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
                 self.textedit_result.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
                 self.textedit_result.verticalScrollBar().setStyleSheet(f"QScrollBar:vertical {chr(123)}border:{str(round(1*self.UI_scale))}px; width:{str(round(15*self.UI_scale))}px solid;{chr(125)}")
@@ -411,14 +411,19 @@ class ScryptCalc(object):
                 self.textedit_result.customContextMenuRequested.connect(self.result_context_menu_show)
 
                 self.checkbox_hide_result=QCheckBox(self)
-                self.checkbox_hide_result.setGeometry(150*self.UI_scale,442*self.UI_scale,250*self.UI_scale,26*self.UI_scale)
+                self.checkbox_hide_result.setGeometry(150*self.UI_scale,409*self.UI_scale,250*self.UI_scale,26*self.UI_scale)
                 self.checkbox_hide_result.setText("Hide result")
                 self.checkbox_hide_result.setFont(self.font_general)
 
                 self.label_result_fingerprint=QLabel(self)
-                self.label_result_fingerprint.setGeometry(95*self.UI_scale,465*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
+                self.label_result_fingerprint.setGeometry(90*self.UI_scale,432*self.UI_scale,125*self.UI_scale,26*self.UI_scale)
                 self.label_result_fingerprint.setText("Fingerprint:")
                 self.label_result_fingerprint.setFont(self.font_monospace)
+
+                self.checkbox_clear_clipboard_on_exit=QCheckBox(self)
+                self.checkbox_clear_clipboard_on_exit.setGeometry(115*self.UI_scale,462*self.UI_scale,250*self.UI_scale,26*self.UI_scale)
+                self.checkbox_clear_clipboard_on_exit.setText("Clear clipboard on exit")
+                self.checkbox_clear_clipboard_on_exit.setFont(self.font_general)
 
                 self.context_menu=QMenu(self)
 
@@ -475,11 +480,16 @@ class ScryptCalc(object):
                         input_settings["length"]=1
                         del input_settings["length"]
                         input_settings["length"]=None
-                    if input_settings["clear"] is not None:
-                        self.checkbox_clear_password_asap.setChecked(input_settings["clear"])
-                        input_settings["clear"]=False
-                        del input_settings["clear"]
-                        input_settings["clear"]=None
+                    if input_settings["clearinput"] is not None:
+                        self.checkbox_clear_input_asap.setChecked(input_settings["clearinput"])
+                        input_settings["clearinput"]=False
+                        del input_settings["clearinput"]
+                        input_settings["clearinput"]=None
+                    if input_settings["clearclipboard"] is not None:
+                        self.checkbox_clear_clipboard_on_exit.setChecked(input_settings["clearclipboard"])
+                        input_settings["clearclipboard"]=False
+                        del input_settings["clearclipboard"]
+                        input_settings["clearclipboard"]=None
                         
                     del input_settings
                     input_settings={}
@@ -494,6 +504,7 @@ class ScryptCalc(object):
                 self.spinbox_P.customContextMenuRequested.connect(lambda:self.lineedit_context_menu_show(self.spinbox_P))
                 self.spinbox_R.valueChanged.connect(self.spinbox_R_onchange)
                 self.spinbox_R.customContextMenuRequested.connect(lambda:self.lineedit_context_menu_show(self.spinbox_R))
+                self.spinbox_length.valueChanged.connect(self.update_output_bits_label)
                 self.spinbox_length.customContextMenuRequested.connect(lambda:self.lineedit_context_menu_show(self.spinbox_length))
                 self.combobox_result_format.currentIndexChanged.connect(self.combobox_result_format_onindexchanged)
                 self.button_compute.clicked.connect(self.begin_compute)
@@ -501,13 +512,15 @@ class ScryptCalc(object):
 
                 self.update_N_param()
                 self.update_memory_usage()
+                self.update_output_bits_label()
                 self.set_input_enabled(True)
                 
                 Cleanup_Memory()
                 input_is_ready.set()
                 return
             
-            def set_clipboard_text(self,input_text):
+            def set_clipboard_text(self,input_text,post_clipboard_calls=[]):
+                self.pending_post_clipboard_calls=post_clipboard_calls+self.pending_post_clipboard_calls
                 self.timer_update_clipboard.start(0)
                 self.pending_clipboard_text=input_text
                 input_text=ScryptCalc.PURGE_VALUE_RESULT
@@ -517,6 +530,9 @@ class ScryptCalc(object):
                 return
             
             def set_clipboard_text_timer_event(self):
+                if self.is_exiting.is_set()==True:
+                    return
+                
                 if self.pending_clipboard_text is None:
                     return
                 
@@ -528,6 +544,10 @@ class ScryptCalc(object):
                 del self.pending_clipboard_text
                 self.pending_clipboard_text=None
                 Cleanup_Memory()
+                if len(self.pending_post_clipboard_calls)>0:
+                    pending_call=self.pending_post_clipboard_calls[0]
+                    self.pending_post_clipboard_calls.pop(0)
+                    pending_call()
                 return
             
             def clear_result_field(self):
@@ -604,7 +624,7 @@ class ScryptCalc(object):
                     self.spinbox_P.setEnabled(input_state)
                     self.combobox_result_format.setEnabled(input_state)
                     self.checkbox_hide_result.setEnabled(input_state)
-                    self.checkbox_clear_password_asap.setEnabled(input_state)
+                    self.checkbox_clear_input_asap.setEnabled(input_state)
                     self.update_button_state()
                 return
 
@@ -657,6 +677,10 @@ class ScryptCalc(object):
                     self.memory_used_ok=True
                 self.update_button_state()
                 return
+            
+            def update_output_bits_label(self):
+                self.label_output_bits.setText(f"{self.spinbox_length.value()*8} bits")
+                return
 
             def update_N_param(self):
                 n_exp=self.spinbox_N_exponent.value()
@@ -688,7 +712,7 @@ class ScryptCalc(object):
                 self.label_result_info.setText("Computing result...")
                 self.scrypt_calculator.REQUEST_COMPUTE(self.textbox_input.text(),self.textbox_salt.text(),self.spinbox_R.value(),self.param_N,self.spinbox_P.value(),self.spinbox_length.value())
 
-                if self.checkbox_clear_password_asap.isChecked()==True:
+                if self.checkbox_clear_input_asap.isChecked()==True:
                     ScryptCalc.UI.Main_Window.purge_lineedit_data(self.textbox_input)
                 return
             
@@ -715,6 +739,14 @@ class ScryptCalc(object):
 
             def closeEvent(self,event):
                 if self.is_exiting.is_set()==True or self.waiting_for_result==True:
+                    event.ignore()
+                    return
+                
+                self.set_input_enabled(False)
+                
+                if self.checkbox_clear_clipboard_on_exit.checkState()==Qt.Checked:
+                    self.checkbox_clear_clipboard_on_exit.setChecked(False)
+                    self.set_clipboard_text(ScryptCalc.PURGE_VALUE_RESULT,[lambda:self.set_clipboard_text(ScryptCalc.PURGE_VALUE_RESULT),lambda:self.set_clipboard_text(u""),self.close])
                     event.ignore()
                     return
 
@@ -1061,7 +1093,7 @@ class ScryptCalc(object):
                 if separator_pos>-1:
                     key=line[:separator_pos].lower().strip()
                     value=line[separator_pos+1:].strip()
-                    if key in ["format","salt","nexp","p","r","length","clear","hideinput","hidesalt","hideresult"]:
+                    if key in ["format","salt","nexp","p","r","length","clearinput","hideinput","hidesalt","hideresult","clearclipboard"]:
                         if key=="nexp":
                             key="N_exp"
                         if key in ["p", "r"]:
@@ -1093,7 +1125,7 @@ class ScryptCalc(object):
                                     value=value.lower()
                                     if value not in ["hex","bin","base16","base32","base64","base85"]:
                                         valid_value=False
-                                elif key in["clear","hideinput","hidesalt","hideresult"]:
+                                elif key in["clearinput","hideinput","hidesalt","hideresult","clearclipboard"]:
                                     value=value.lower()
                                     if value in ["1","true","yes"]:
                                         value=True
@@ -1106,7 +1138,7 @@ class ScryptCalc(object):
 
                         if valid_value==True:
                             collected_settings[key]=value
-                            if set(["format","salt","N_exp","P","R","clear","hideinput","hidesalt","hideresult"])==set(collected_settings.keys()):
+                            if set(["format","salt","N_exp","P","R","clearinput","hideinput","hidesalt","hideresult","clearclipboard"])==set(collected_settings.keys()):
                                 break
             
                     key=ScryptCalc.PURGE_VALUE_RESULT
@@ -1121,7 +1153,7 @@ class ScryptCalc(object):
                 settings_lines[-1]=None
                 del settings_lines[-1]
                 
-        for key in ["format","salt","N_exp","P","R","length","clear","hideinput","hidesalt","hideresult"]:
+        for key in ["format","salt","N_exp","P","R","length","clearinput","hideinput","hidesalt","hideresult","clearclipboard"]:
             if key not in collected_settings:
                 collected_settings[key]=None
 
