@@ -381,7 +381,7 @@ class ScryptCalc(object):
                 self.button_compute.setFont(self.font_general)
 
                 self.label_result_info=QLabel(self)
-                self.label_result_info.setGeometry(40*self.UI_scale,307*self.UI_scale,240*self.UI_scale,26*self.UI_scale)
+                self.label_result_info.setGeometry(20*self.UI_scale,307*self.UI_scale,300*self.UI_scale,26*self.UI_scale)
                 self.label_result_info.setText("Result (derived key):")
                 self.label_result_info.setFont(self.font_general)
 
@@ -625,6 +625,7 @@ class ScryptCalc(object):
                     self.combobox_result_format.setEnabled(input_state)
                     self.checkbox_hide_result.setEnabled(input_state)
                     self.checkbox_clear_input_asap.setEnabled(input_state)
+                    self.checkbox_clear_clipboard_on_exit.setEnabled(input_state)
                     self.update_button_state()
                 return
 
@@ -709,7 +710,7 @@ class ScryptCalc(object):
                 self.clear_result_field()
                 self.purge_result_info()
                 self.waiting_for_result=True
-                self.label_result_info.setText("Computing result...")
+                self.label_result_info.setText("Computing result (derived key)...")
                 self.scrypt_calculator.REQUEST_COMPUTE(self.textbox_input.text(),self.textbox_salt.text(),self.spinbox_R.value(),self.param_N,self.spinbox_P.value(),self.spinbox_length.value())
 
                 if self.checkbox_clear_input_asap.isChecked()==True:
@@ -780,7 +781,7 @@ class ScryptCalc(object):
 
             def receive_result(self,result_data):
                 self.result_bytes=result_data["result"]
-                self.label_result_info.setText(f"Result took {round(result_data['compute_time_ms']/1000.0,3)} second(s):")
+                self.label_result_info.setText(f"Result (derived key) took {round(result_data['compute_time_ms']/1000.0,3)} second(s):")
                 result_data["result"]=ScryptCalc.PURGE_VALUE
                 del result_data["result"]
                 result_data["result"]=None
