@@ -1,5 +1,7 @@
 # ScryptCalc - Portable calculator for Scrypt KDF application with UI written in Python 3.7
 
+![ScryptCalc](https://github.com/user-attachments/assets/24739e35-6691-4f65-85d1-4f91a4536b7c)
+
 ScryptCalc is a PyQt 5 UI frontend that uses hashlib's Scrypt implementation.
 
 Extensive attempts have been made to clear secret info from the application's memory as soon as it's no longer needed and encourage deallocating and overwriting unneeded memory, but with Python being unmanaged and Qt as well underlying variable management implementations not being set in stone this only mitigates the amount of occurrences. Memory dumps may sometimes contain some of the most recent inputs and their resulting passwords, usually 1-3 occurrences each. This is almost exclusively due to the string manipulation mannerisms of Qt5.
