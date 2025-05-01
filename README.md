@@ -31,10 +31,11 @@ p=2
 length=30
 salt=myUniqueSalt3056740568309530
 format=hex
-clear=1
+clearinput=1
 hideinput=1
 hidesalt=1
 hideresult=1
+clearclipboard=1
 ```
 
-The values provided will be automatically populated in the UI on application start. Clear, hideinput, hidesalt, and hideresult can take 1/true/yes or 0/false/no as values.
+The values provided will be automatically populated in the UI on application start. The settings "clearinput", "hideinput", "hidesalt", "hideresult" and "clearclipboard" can take "1"/"true"/"yes" or "0"/"false"/"no" as values.
