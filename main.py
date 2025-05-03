@@ -1310,7 +1310,33 @@ if Versions_Str_Equal_Or_Less(PYQT5_MAX_SUPPORTED_COMPILE_VERSION,PYQT_VERSION_S
     sys.stderr.write(f"WARNING: PyQt5 version({PYQT_VERSION_STR}) is higher than the maximum supported version for compiling({PYQT5_MAX_SUPPORTED_COMPILE_VERSION}). The application may run off source code but will fail to compile.\n")
     sys.stderr.flush()
 
-config_file_path=os.path.join(os.path.realpath(os.path.dirname(sys.executable)),"config.txt")
+try:
+    exe_name=sys.executable.lower().strip().replace(u"/",u"\\").split("\\")[-1].replace(u".exe",u"")
+except:
+    exe_name=u""
+
+custom_config_path=u""
+
+if exe_name==u"python" and sys.argv[0].lower().strip().endswith(u".py"):
+    working_directory=os.path.dirname(__file__)
+else:
+    working_directory=os.path.dirname(sys.executable)
+
+if len(sys.argv)>1:
+    custom_config_path=sys.argv[-1].strip()
+
+working_directory=os.path.realpath(working_directory)
+os.chdir(working_directory)
+
+if len(custom_config_path)==0:
+    config_file_path=os.path.join(working_directory,u"config.txt")
+else:
+    custom_config_path=custom_config_path.replace(u"/",u"\\")
+    if custom_config_path.startswith(u"\\\\")==False and ":" not in custom_config_path:
+        if custom_config_path.startswith(u"\\")==False:
+            custom_config_path=f"\\{custom_config_path}"
+        custom_config_path=f"{working_directory}{custom_config_path}"
+    config_file_path=custom_config_path
 
 try:
     with open(config_file_path,"r") as file_handle:
