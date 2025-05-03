@@ -1190,12 +1190,15 @@ class ScryptCalc(object):
 
                         valid_value=True
                         
-                        if len(value)>0 and len(value)<4:
+                        if len(value)>0 and len(value)<=ScryptCalc.PARAM_LENGTH_MAX:
                             if key in ["N_exp","P","R","length","chain"]:
-                                try:
-                                    value=int(value)
-                                except:
+                                if len(value)>3:
                                     valid_value=False
+                                else:
+                                    try:
+                                        value=int(value)
+                                    except:
+                                        valid_value=False
 
                                 if valid_value==True:
                                     if key=="N_exp" and (value<ScryptCalc.PARAM_N_EXPONENT_MIN or value>ScryptCalc.PARAM_N_EXPONENT_MAX):
@@ -1304,6 +1307,7 @@ if Versions_Str_Equal_Or_Less(PYQT5_MAX_SUPPORTED_COMPILE_VERSION,PYQT_VERSION_S
     sys.stderr.flush()
 
 config_file_path=os.path.join(os.path.realpath(os.path.dirname(sys.executable)),"config.txt")
+config_file_path="D:\\Program Files\\ScryptCalc\\config.txt"
 
 try:
     with open(config_file_path,"r") as file_handle:
