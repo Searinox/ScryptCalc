@@ -122,6 +122,7 @@ class ScryptCalc(object):
 
         def REQUEST_COMPUTE(self,input_value,input_salt,input_R,input_N,input_P,input_length,input_chain):
             self.lock_job.acquire()
+            self.abort_received.clear()
             self.job={"value":input_value,"salt":input_salt,"R":input_R,"N":input_N,"P":input_P,"length":input_length,"chain":input_chain}
             self.lock_job.release()
 
@@ -215,15 +216,18 @@ class ScryptCalc(object):
                     del new_job
                     new_job=None
                     new_job={}
+                    
                     if self.abort_received.is_set()==False:
                         self.complete_job(result,GetTickCount64()-start_time)
+                    
                     chain_pass=0
                     result=bytes(ScryptCalc.PURGE_VALUE,"utf-8")
                     del result
                     result=None
+                    
                     if self.abort_received.is_set()==True:
                         self.job_canceled()
-                    self.abort_received.clear()
+                    
                     Cleanup_Memory()
 
             self.UI_signaller=None
