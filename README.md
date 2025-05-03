@@ -36,6 +36,7 @@ format=hex
 clearinput=1
 hideinput=1
 hidesalt=1
+chain=1
 hideresult=1
 clearclipboard=1
 ```
