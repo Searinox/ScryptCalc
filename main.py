@@ -558,6 +558,7 @@ class ScryptCalc(object):
                 self.spinbox_R.customContextMenuRequested.connect(lambda:self.lineedit_context_menu_show(self.spinbox_R))
                 self.spinbox_length.valueChanged.connect(self.update_output_bits_label)
                 self.spinbox_length.customContextMenuRequested.connect(lambda:self.lineedit_context_menu_show(self.spinbox_length))
+                self.spinbox_chain.customContextMenuRequested.connect(lambda:self.lineedit_context_menu_show(self.spinbox_length))
                 self.combobox_result_format.currentIndexChanged.connect(self.combobox_result_format_onindexchanged)
                 self.button_compute_abort.clicked.connect(self.compute_abort_go)
                 self.button_copy.clicked.connect(self.button_copy_onclick)
