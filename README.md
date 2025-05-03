@@ -44,3 +44,5 @@ clearclipboard=1
 ```
 
 The values provided will be automatically populated in the UI on application start. The settings "clearinput", "hideinput", "hidesalt", "hideresult" and "clearclipboard" can take "1"/"true"/"yes" or "0"/"false"/"no" as values.
+
+Custom paths for the config file are supported. Providing the file path as an argument will have ScryptCalc attempt to load it on start. If it cannot, it will start with the default settings. Relative paths are understood as relative to the ScryptCalc binary's folder.
