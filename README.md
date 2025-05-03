@@ -1,6 +1,6 @@
 # ScryptCalc - Portable calculator for Scrypt KDF application with UI written in Python 3.7
 
-<p align="center" width="100%"><img src="https://github.com/user-attachments/assets/61f642c8-b236-4ee0-a053-10656b6c6016"></p>
+<p align="center" width="100%"><img src="https://github.com/user-attachments/assets/e64f833c-f65c-4bf7-b2f2-ebfe53d340d5"></p>
 
 ScryptCalc is a PyQt 5 UI frontend that uses hashlib's Scrypt implementation.
 
