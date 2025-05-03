@@ -1307,7 +1307,6 @@ if Versions_Str_Equal_Or_Less(PYQT5_MAX_SUPPORTED_COMPILE_VERSION,PYQT_VERSION_S
     sys.stderr.flush()
 
 config_file_path=os.path.join(os.path.realpath(os.path.dirname(sys.executable)),"config.txt")
-config_file_path="D:\\Program Files\\ScryptCalc\\config.txt"
 
 try:
     with open(config_file_path,"r") as file_handle:
