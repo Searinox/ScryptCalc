@@ -29,6 +29,7 @@ A three-character "fingerprint" is generated from the password. This serves as a
 In addition, a file named "config.txt" can be placed in the application folder containing saved parameters in this example format:
 
 ```
+title=Browser passwords
 nexp=10
 r=8
 p=2
