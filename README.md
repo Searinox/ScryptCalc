@@ -44,6 +44,8 @@ hideresult=1
 clearclipboard=1
 ```
 
+Note that not all settings need to be present in a config.
+
 The setting "title" can be used to append a title to the running instance for a more descriptive presentation of what the config parameters are set up to be used for. Maximum length is 24 characters. application start.
 
 The settings "clearinput", "hideinput", "hidesalt", "hideresult" and "clearclipboard" can take "1"/"true"/"yes" or "0"/"false"/"no" as values.
