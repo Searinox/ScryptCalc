@@ -45,6 +45,7 @@ class ScryptCalc(object):
 
     COMPUTE_MEMORY_MAX_BYTES=1024**3*2-1
 
+    PARAM_TITLE_LENGTH_MAX=24
     PARAM_INPUT_MAX=192
     PARAM_SALT_MAX=192
     PARAM_N_EXPONENT_MIN=1
@@ -485,6 +486,11 @@ class ScryptCalc(object):
                 self.checkbox_hide_result.toggled.connect(lambda new_state:self.set_textbox_input_hidden(self.textedit_result,new_state))
 
                 if input_settings is not None:
+                    if input_settings["title"] is not None:
+                        self.setWindowTitle(f"ScryptCalc: {input_settings['title']}")
+                        input_settings["title"]=ScryptCalc.PURGE_VALUE
+                        del input_settings["title"]
+                        input_settings["title"]=None
                     if input_settings["hideinput"] is not None:
                         self.checkbox_hide_input.setChecked(input_settings["hideinput"])
                         input_settings["hideinput"]=False
@@ -828,6 +834,8 @@ class ScryptCalc(object):
                 ScryptCalc.UI.Main_Window.purge_lineedit_data(self.textbox_input)
                 ScryptCalc.UI.Main_Window.purge_lineedit_data(self.textbox_salt)
                 self.purge_result_info()
+                self.setWindowTitle(ScryptCalc.PURGE_VALUE)
+                self.setWindowTitle("ScryptCalc")
                 self.spinbox_N_exponent.setValue(1)
                 self.spinbox_R.setValue(1)
                 self.spinbox_P.setValue(1)
@@ -1186,7 +1194,7 @@ class ScryptCalc(object):
                 if separator_pos>-1:
                     key=line[:separator_pos].lower().strip()
                     value=line[separator_pos+1:].strip()
-                    if key in ["format","salt","nexp","p","r","length","clearinput","hideinput","hidesalt","chain","hideresult","clearclipboard"]:
+                    if key in ["title","format","salt","nexp","p","r","length","clearinput","hideinput","hidesalt","chain","hideresult","clearclipboard"]:
                         if key=="nexp":
                             key="N_exp"
                         if key in ["p", "r"]:
@@ -1217,7 +1225,14 @@ class ScryptCalc(object):
                                         valid_value=False
 
                             else:
-                                if key=="salt" and " " in value:
+                                if key=="title":
+                                    value=value.strip()
+                                    if len(value)>ScryptCalc.PARAM_TITLE_LENGTH_MAX:
+                                        value=value[:-(len(value)-ScryptCalc.PARAM_TITLE_LENGTH_MAX)]
+                                        value=value.strip()
+                                    if len(value)==0:
+                                        valid_value=False
+                                elif key=="salt" and " " in value:
                                     valid_value=False
                                 elif key=="format":
                                     value=value.lower()
@@ -1236,7 +1251,7 @@ class ScryptCalc(object):
 
                         if valid_value==True:
                             collected_settings[key]=value
-                            if set(["format","salt","N_exp","P","R","clearinput","hideinput","hidesalt","chain","hideresult","clearclipboard"])==set(collected_settings.keys()):
+                            if set(["title","format","salt","N_exp","P","R","clearinput","hideinput","hidesalt","chain","hideresult","clearclipboard"])==set(collected_settings.keys()):
                                 break
                                 
                     key=ScryptCalc.PURGE_VALUE_RESULT
@@ -1251,7 +1266,7 @@ class ScryptCalc(object):
                 settings_lines[-1]=None
                 del settings_lines[-1]
                 
-        for key in ["format","salt","N_exp","P","R","length","clearinput","hideinput","hidesalt","chain","hideresult","clearclipboard"]:
+        for key in ["title","format","salt","N_exp","P","R","length","clearinput","hideinput","hidesalt","chain","hideresult","clearclipboard"]:
             if key not in collected_settings:
                 collected_settings[key]=None
 
