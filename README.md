@@ -1,4 +1,4 @@
-# ScryptCalc - Portable calculator for Scrypt KDF application with UI written in Python 3.7
+# ScryptCalc - Portable calculator for Scrypt KDF application with UI written in Python 3.7 for Windows
 
 <p align="center" width="100%"><img src="https://github.com/user-attachments/assets/e64f833c-f65c-4bf7-b2f2-ebfe53d340d5"></p>
 
