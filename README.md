@@ -12,7 +12,7 @@ Password, salt, and output size of max 192 characters are supported. The output 
 
 When it comes to the Scrypt parameter N, the UI setting represents the exponent of the actual number of rounds, as per the formula N = exp^2. So for example, setting an exponent of 10 will translate into a Scrypt N = 1024.
 
-The memory estimate for computation based on the selected parameters is displayed in the UI. Parameters are adjustable to any values that keep Scrypt's memory usage under 2GB. The limitations on how big the Scrypt parameters can get is dictated by hashlib's implementation.
+The memory estimate for computation based on the selected parameters is displayed in the UI. Parameters are adjustable to any values that keep Scrypt's memory usage under 2GB. The limitations on how big the Scrypt parameters can get are dictated by hashlib's implementation.
 
 Pressing ENTER in the input field will perform a computation. A finished computation will then auto-focus the "Copy result" button for convenience, so a sequence of typing the input, hitting ENTER, and following up with SPACEBAR after completion is enough to derive a password and fetch the result.
 
