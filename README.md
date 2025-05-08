@@ -42,16 +42,20 @@ hidesalt=1
 chain=1
 hideresult=1
 clearclipboard=1
+nocopy=0
 ```
 
 Note that not all settings need to be present in a config.
 
 The setting "title" can be used to append a title to the running instance for a more descriptive presentation of what the config parameters are set up to be used for. Maximum length is 24 characters.
 
-The settings "clearinput", "hideinput", "hidesalt", "hideresult" and "clearclipboard" can take "1"/"true"/"yes" or "0"/"false"/"no" as values.
+The settings "clearinput", "hideinput", "hidesalt", "hideresult", "clearclipboard" and "nocopy" can take "1"/"true"/"yes" or "0"/"false"/"no" as values.
 
 Settings are reflected in the UI immediately on start.
 
 Custom paths for the config file are supported. Providing the file path as a command line argument will have ScryptCalc attempt to load it on start. If it cannot, it will start with the default settings. Relative paths are understood as relative to the ScryptCalc binary's folder. If a provided file is deemed invalid or unreadable, the default "config.txt" is attempted to load. The application will start with internal default values if neither is possible.
 
 While the application is open, the shortcut CTRL+SHIFT+E can be used to write the current result character-by-character. This is useful for password textboxes that disallow pasting. Note that since this option is agnostic to UI context and sends raw keypresses, unexpected events can occur from using this shortcut outside of text fields. This method also does not make use of the system clipboard.
+
+To further prevent clipboard usage by accident, the config option "nocopy" can be set in the config file. This option disables all mechanisms to copy input to clipboard, though pasting is still possible. Only the CTRL+SHIFT+E shortcut can be used in this mode. This mode cannot be disabled once the application is running.
+
