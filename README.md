@@ -54,4 +54,4 @@ Settings are reflected in the UI immediately on start.
 
 Custom paths for the config file are supported. Providing the file path as a command line argument will have ScryptCalc attempt to load it on start. If it cannot, it will start with the default settings. Relative paths are understood as relative to the ScryptCalc binary's folder.
 
-While the application is open, the shortcut CTRL+SHIFT+S can be used to paste character-by-character. This is useful for password textboxes that disallow pasting.
+While the application is open, the shortcut CTRL+SHIFT+S can be used to paste character-by-character. This is useful for password textboxes that disallow pasting. Note that since this option is agnostic to UI context, unexpected events can occur from using this shortcut outside of text fields.
