@@ -147,7 +147,7 @@ class ScryptCalc(object):
                 keyboard.hook(self.on_key_press)
                 return
             
-            if event.name.upper()!="S":
+            if event.name.upper()!="E":
                 keyboard.hook(self.on_key_press)
                 return
             
