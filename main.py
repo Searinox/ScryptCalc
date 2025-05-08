@@ -686,7 +686,7 @@ class ScryptCalc(object):
                         del input_settings["clearclipboard"]
                         input_settings["clearclipboard"]=None
                     if input_settings["nocopy"] is not None:
-                        self.copy_disabled=True
+                        self.copy_disabled=input_settings["nocopy"]
                         input_settings["nocopy"]=False
                         del input_settings["nocopy"]
                         input_settings["nocopy"]=None
