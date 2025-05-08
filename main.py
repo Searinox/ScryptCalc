@@ -369,6 +369,9 @@ class ScryptCalc(object):
 
         class Text_Editor(QPlainTextEdit):
             def createMimeDataFromSelection(self):
+                if self.parentWidget().copy_disabled==True:
+                    return
+                
                 cursor=self.textCursor()
                 start=cursor.selectionStart()
                 end=cursor.selectionEnd()
@@ -401,6 +404,7 @@ class ScryptCalc(object):
                 self.UI_scale=self.logicalDpiX()/96.0
                 self.signal_response_calls={"compute_done":self.compute_done,"chain_progress":self.update_chain_progress,"result_requested":self.on_alternate_paste}
                 
+                self.copy_disabled=False
                 self.pending_clipboard_text=u""
                 self.pending_post_clipboard_calls=[]
                 
@@ -681,6 +685,11 @@ class ScryptCalc(object):
                         input_settings["clearclipboard"]=False
                         del input_settings["clearclipboard"]
                         input_settings["clearclipboard"]=None
+                    if input_settings["nocopy"] is not None:
+                        self.copy_disabled=True
+                        input_settings["nocopy"]=False
+                        del input_settings["nocopy"]
+                        input_settings["nocopy"]=None
                         
                     del input_settings
                     input_settings={}
@@ -712,9 +721,11 @@ class ScryptCalc(object):
                 return
             
             def set_clipboard_text(self,input_text,post_clipboard_calls=[]):
+                if self.copy_disabled==False:
+                    self.pending_clipboard_text=input_text
+                    
                 self.pending_post_clipboard_calls=post_clipboard_calls+self.pending_post_clipboard_calls
                 self.timer_update_clipboard.start(0)
-                self.pending_clipboard_text=input_text
                 input_text=ScryptCalc.PURGE_VALUE_RESULT
                 del input_text
                 input_text=u""
@@ -733,6 +744,7 @@ class ScryptCalc(object):
                 del self.pending_clipboard_text
                 self.pending_clipboard_text=u""
                 Cleanup_Memory()
+                
                 if len(self.pending_post_clipboard_calls)>0:
                     pending_call=self.pending_post_clipboard_calls[0]
                     self.pending_post_clipboard_calls.pop(0)
@@ -831,7 +843,7 @@ class ScryptCalc(object):
                 del result_text
                 result_text=None
                 Cleanup_Memory()
-                self.button_copy.setEnabled(self.input_enabled and result_not_empty)
+                self.button_copy.setEnabled(self.input_enabled and result_not_empty and self.copy_disabled==False)
                 result_not_empty=False
                 return
             
@@ -960,6 +972,7 @@ class ScryptCalc(object):
 
                 self.is_exiting.set()
                 
+                self.copy_disabled=False
                 self.purge_result_bytes()
                 ScryptCalc.UI.Main_Window.purge_lineedit_data(self.textbox_input)
                 ScryptCalc.UI.Main_Window.purge_lineedit_data(self.textbox_salt)
@@ -1122,15 +1135,18 @@ class ScryptCalc(object):
                     menu_action.setShortcut(QKeySequence(Qt.Key_A))
                     menu_action.triggered.connect(lambda:source_item.selectAll())
                     if source_item.hasSelectedText()==True:
-                        self.context_menu.addSeparator()
-                        menu_action=self.context_menu.addAction("&Copy Selection")
-                        menu_action.setFont(self.font_general)
-                        menu_action.setShortcut(QKeySequence(Qt.Key_C))
-                        menu_action.triggered.connect(lambda:self.set_clipboard_text(source_item.selectedText()))
-                        menu_action=self.context_menu.addAction("Cu&t Selection")
-                        menu_action.setFont(self.font_general)
-                        menu_action.setShortcut(QKeySequence(Qt.Key_T))
-                        menu_action.triggered.connect(lambda:ScryptCalc.UI.Main_Window.lineedit_context_menu_cut_selection(self,source_item))
+                        
+                        if self.copy_disabled==False:
+                            self.context_menu.addSeparator()
+                            menu_action=self.context_menu.addAction("&Copy Selection")
+                            menu_action.setFont(self.font_general)
+                            menu_action.setShortcut(QKeySequence(Qt.Key_C))
+                            menu_action.triggered.connect(lambda:self.set_clipboard_text(source_item.selectedText()))
+                            menu_action=self.context_menu.addAction("Cu&t Selection")
+                            menu_action.setFont(self.font_general)
+                            menu_action.setShortcut(QKeySequence(Qt.Key_T))
+                            menu_action.triggered.connect(lambda:ScryptCalc.UI.Main_Window.lineedit_context_menu_cut_selection(self,source_item))
+                            
                         menu_action=self.context_menu.addAction("&Delete Selection")
                         menu_action.setFont(self.font_general)
                         menu_action.triggered.connect(lambda:ScryptCalc.UI.Main_Window.lineedit_context_menu_delete_selection(source_item))
@@ -1150,6 +1166,7 @@ class ScryptCalc(object):
                         menu_action.setFont(self.font_general)
                         menu_action.triggered.connect(lambda:[ScryptCalc.UI.Main_Window.lineedit_context_menu_paste(source_item,self.clipboard),ScryptCalc.UI.Main_Window.validate_value(validating_item)])
                         menu_action.setShortcut(QKeySequence(Qt.Key_P))
+                
                 if item_text_length>0:
                     self.context_menu.addSeparator()
                     menu_action=self.context_menu.addAction("Clea&r")
@@ -1179,12 +1196,15 @@ class ScryptCalc(object):
                     menu_action.setFont(self.font_general)
                     menu_action.setShortcut(QKeySequence(Qt.Key_A))
                     menu_action.triggered.connect(lambda:self.textedit_result.selectAll())
+                    
                     if cursor_start!=-1 and cursor_end!=-1 and cursor_start<cursor_end:
-                        self.context_menu.addSeparator()
-                        menu_action=self.context_menu.addAction("&Copy Selection")
-                        menu_action.setFont(self.font_general)
-                        menu_action.setShortcut(QKeySequence(Qt.Key_C))
-                        menu_action.triggered.connect(lambda:self.set_clipboard_text(self.stored_result_text[cursor_start:cursor_end]))
+                        if self.copy_disabled==False:
+                            self.context_menu.addSeparator()
+                            menu_action=self.context_menu.addAction("&Copy Selection")
+                            menu_action.setFont(self.font_general)
+                            menu_action.setShortcut(QKeySequence(Qt.Key_C))
+                            menu_action.triggered.connect(lambda:self.set_clipboard_text(self.stored_result_text[cursor_start:cursor_end]))
+                            
                         self.context_menu.addSeparator()
                         menu_action=self.context_menu.addAction("D&eselect")
                         menu_action.setFont(self.font_general)
@@ -1325,7 +1345,7 @@ class ScryptCalc(object):
                 if separator_pos>-1:
                     key=line[:separator_pos].lower().strip()
                     value=line[separator_pos+1:].strip()
-                    if key in ["title","format","salt","nexp","p","r","length","clearinput","hideinput","hidesalt","chain","hideresult","clearclipboard"]:
+                    if key in ["title","format","salt","nexp","p","r","length","clearinput","hideinput","hidesalt","chain","hideresult","clearclipboard","nocopy"]:
                         if key=="nexp":
                             key="N_exp"
                         if key in ["p", "r"]:
@@ -1369,7 +1389,7 @@ class ScryptCalc(object):
                                     value=value.lower()
                                     if value not in ["hex","bin","base16","base32","base64","base85"]:
                                         valid_value=False
-                                elif key in["clearinput","hideinput","hidesalt","hideresult","clearclipboard"]:
+                                elif key in["clearinput","hideinput","hidesalt","hideresult","clearclipboard","nocopy"]:
                                     value=value.lower()
                                     if value in ["1","true","yes"]:
                                         value=True
@@ -1382,7 +1402,7 @@ class ScryptCalc(object):
 
                         if valid_value==True:
                             collected_settings[key]=value
-                            if set(["title","format","salt","N_exp","P","R","clearinput","hideinput","hidesalt","chain","hideresult","clearclipboard"])==set(collected_settings.keys()):
+                            if set(["title","format","salt","N_exp","P","R","clearinput","hideinput","hidesalt","chain","hideresult","clearclipboard","nocopy"])==set(collected_settings.keys()):
                                 break
                                 
                     key=ScryptCalc.PURGE_VALUE_RESULT
@@ -1397,7 +1417,7 @@ class ScryptCalc(object):
                 settings_lines[-1]=None
                 del settings_lines[-1]
                 
-        for key in ["title","format","salt","N_exp","P","R","length","clearinput","hideinput","hidesalt","chain","hideresult","clearclipboard"]:
+        for key in ["title","format","salt","N_exp","P","R","length","clearinput","hideinput","hidesalt","chain","hideresult","clearclipboard","nocopy"]:
             if key not in collected_settings:
                 collected_settings[key]=None
 
