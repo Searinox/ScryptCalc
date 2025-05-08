@@ -181,7 +181,7 @@ class ScryptCalc(object):
                     current_character=None
                     self.result_text=ScryptCalc.PURGE_VALUE_RESULT
                     del self.result_text
-                    self.result_text=None
+                    self.result_text=u""
                     Cleanup_Memory()
 
                     self.result_updated.clear()
