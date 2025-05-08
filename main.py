@@ -91,12 +91,12 @@ class ScryptCalc(object):
             self.request_exit.clear()
             self.has_quit=threading.Event()
             self.has_quit.clear()
-            self.clipboard_updated=threading.Event()
-            self.clipboard_updated.clear()
+            self.result_updated=threading.Event()
+            self.result_updated.clear()
+            self.result_text_lock=threading.Lock()
+            self.result_text=u""
             self.working_thread=threading.Thread(target=self.work_loop)
             self.working_thread.daemon=True
-            self.clipboard_text_lock=threading.Lock()
-            self.clipboard_text=u""
             return
         
         def START(self):
@@ -123,12 +123,12 @@ class ScryptCalc(object):
             Cleanup_Memory()
             return
         
-        def UPDATE_CLIPBOARD_TEXT(self,input_text):
+        def UPDATE_RESULT_TEXT(self,input_text):
             if self.request_exit.is_set()==False:
-                self.clipboard_text_lock.acquire()
-                self.clipboard_text=input_text
-                self.clipboard_updated.set()
-                self.clipboard_text_lock.release()
+                self.result_text_lock.acquire()
+                self.result_text=input_text
+                self.result_updated.set()
+                self.result_text_lock.release()
                 
             input_text=ScryptCalc.PURGE_VALUE_RESULT
             del input_text
@@ -151,39 +151,41 @@ class ScryptCalc(object):
                 keyboard.hook(self.on_key_press)
                 return
             
-            self.UI_signaller.SEND_EVENT("clipboard_requested",{"data":None})
+            self.UI_signaller.SEND_EVENT("result_requested",{})
             return
         
         def work_loop(self):
-            clipboard_length=-1
-            character=None
+            result_length=-1
+            current_character=None
             
             while self.request_exit.is_set()==False:
                 time.sleep(ScryptCalc.PENDING_ACTIVITY_HEARTBEAT_SECONDS)
                 
-                if self.clipboard_updated.is_set()==True:
-                    self.clipboard_text_lock.acquire()
+                if self.result_updated.is_set()==True:
+                    self.result_text_lock.acquire()
 
-                    clipboard_length=len(self.clipboard_text)
+                    result_length=len(self.result_text)
+                    keyboard.clear_all_hotkeys()
 
-                    for index in range(clipboard_length):
-                        character=self.clipboard_text[index]
-                        keyboard.write(character,delay=0)
+                    for result_character_index in range(result_length):
+                        current_character=self.result_text[result_character_index]
+                        keyboard.write(current_character,delay=0)
                         
                         if self.request_exit.is_set()==True:
                             break
-                        if index<clipboard_length-1:
+                        if result_character_index<result_length-1:
                             time.sleep(ScryptCalc.ALTERNATE_PASTE_INTERKEY_DELAY_SECONDS)
                     
-                    clipboard_length=-1
-                    del character
-                    character=None
-                    self.clipboard_text=ScryptCalc.PURGE_VALUE_RESULT
-                    del self.clipboard_text
-                    self.clipboard_text=None
+                    result_length=-1
+                    del current_character
+                    current_character=None
+                    self.result_text=ScryptCalc.PURGE_VALUE_RESULT
+                    del self.result_text
+                    self.result_text=None
+                    Cleanup_Memory()
 
-                    self.clipboard_updated.clear()
-                    self.clipboard_text_lock.release()
+                    self.result_updated.clear()
+                    self.result_text_lock.release()
 
                     if self.request_exit.is_set()==False:
                         keyboard.hook(self.on_key_press)
@@ -381,7 +383,7 @@ class ScryptCalc(object):
                 self.waiting_for_result=False
 
                 self.UI_scale=self.logicalDpiX()/96.0
-                self.signal_response_calls={"compute_done":self.compute_done,"chain_progress":self.update_chain_progress,"clipboard_requested":self.on_alternate_paste}
+                self.signal_response_calls={"compute_done":self.compute_done,"chain_progress":self.update_chain_progress,"result_requested":self.on_alternate_paste}
                 
                 self.pending_clipboard_text=None
                 self.pending_post_clipboard_calls=[]
@@ -781,7 +783,7 @@ class ScryptCalc(object):
                 return
 
             def on_alternate_paste(self,_):
-                self.alternate_paste_agent.UPDATE_CLIPBOARD_TEXT(self.clipboard.text())
+                self.alternate_paste_agent.UPDATE_RESULT_TEXT(self.stored_result_text)
                 return
 
             def combobox_result_format_onindexchanged(self):
