@@ -52,6 +52,6 @@ The settings "clearinput", "hideinput", "hidesalt", "hideresult" and "clearclipb
 
 Settings are reflected in the UI immediately on start.
 
-Custom paths for the config file are supported. Providing the file path as a command line argument will have ScryptCalc attempt to load it on start. If it cannot, it will start with the default settings. Relative paths are understood as relative to the ScryptCalc binary's folder.
+Custom paths for the config file are supported. Providing the file path as a command line argument will have ScryptCalc attempt to load it on start. If it cannot, it will start with the default settings. Relative paths are understood as relative to the ScryptCalc binary's folder. If a provided file is deemed invalid or unreadable, the default "config.txt" is attempted to load. The application will start with internal default values if neither is possible.
 
 While the application is open, the shortcut CTRL+SHIFT+E can be used to write the current result character-by-character. This is useful for password textboxes that disallow pasting. Note that since this option is agnostic to UI context and sends raw keypresses, unexpected events can occur from using this shortcut outside of text fields. This method also does not make use of the system clipboard.
