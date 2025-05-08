@@ -1,4 +1,4 @@
-import base64,ctypes,gc,os,sys,time,threading,hashlib
+import base64,ctypes,gc,hashlib,keyboard,os,sys,time,threading
 from PyQt5.QtCore import (PYQT_VERSION_STR,Qt,QObject,QCoreApplication,QByteArray,pyqtSignal,qInstallMessageHandler,QTimer)
 from PyQt5.QtWidgets import (QApplication,QMenu,QLabel,QLineEdit,QMainWindow,QPushButton,QSpinBox,QPlainTextEdit,QComboBox,QCheckBox)
 from PyQt5.QtGui import (QFont,QPixmap,QImage,QIcon,QTextOption,QTextCursor,QCursor,QKeySequence)
@@ -41,6 +41,7 @@ class ScryptCalc(object):
     
     MAINTHREAD_HEARTBEAT_SECONDS=0.1
     PENDING_ACTIVITY_HEARTBEAT_SECONDS=0.1
+    ALTERNATE_PASTE_INTERKEY_DELAY_SECONDS=0.005
     CLIPBOARD_SET_TIMEOUT_MILLISECONDS=1000
 
     COMPUTE_MEMORY_MAX_BYTES=1024**3*2-1
@@ -82,6 +83,115 @@ class ScryptCalc(object):
                 return True
             except:
                 return False
+
+    class Alternate_Paste_Agent(object):
+        def __init__(self,input_UI_signaller):
+            self.UI_signaller=input_UI_signaller
+            self.request_exit=threading.Event()
+            self.request_exit.clear()
+            self.has_quit=threading.Event()
+            self.has_quit.clear()
+            self.clipboard_updated=threading.Event()
+            self.clipboard_updated.clear()
+            self.working_thread=threading.Thread(target=self.work_loop)
+            self.working_thread.daemon=True
+            self.clipboard_text_lock=threading.Lock()
+            self.clipboard_text=u""
+            return
+        
+        def START(self):
+            keyboard.hook(self.on_key_press)
+            self.working_thread.start()
+            return
+
+        def REQUEST_STOP(self):
+            self.request_exit.set()
+            return
+
+        def IS_RUNNING(self):
+            return self.has_quit.is_set()==False
+
+        def CONCLUDE(self):
+            global PENDING_ACTIVITY_HEARTBEAT_SECONDS
+
+            while self.IS_RUNNING()==True:
+                time.sleep(ScryptCalc.PENDING_ACTIVITY_HEARTBEAT_SECONDS)
+            
+            self.working_thread.join()
+            del self.working_thread
+            self.working_thread=None
+            Cleanup_Memory()
+            return
+        
+        def UPDATE_CLIPBOARD_TEXT(self,input_text):
+            if self.request_exit.is_set()==False:
+                self.clipboard_text_lock.acquire()
+                self.clipboard_text=input_text
+                self.clipboard_updated.set()
+                self.clipboard_text_lock.release()
+                
+            input_text=ScryptCalc.PURGE_VALUE_RESULT
+            del input_text
+            input_text=None
+            Cleanup_Memory()
+            return
+        
+        def on_key_press(self,event):
+            keyboard.unhook(self.on_key_press)
+            
+            if event.event_type!=keyboard.KEY_DOWN:
+                keyboard.hook(self.on_key_press)
+                return
+
+            if keyboard.is_pressed("ctrl")==False or keyboard.is_pressed("shift")==False:
+                keyboard.hook(self.on_key_press)
+                return
+            
+            if event.name.upper()!="S":
+                keyboard.hook(self.on_key_press)
+                return
+            
+            self.UI_signaller.SEND_EVENT("clipboard_requested",{"data":None})
+            return
+        
+        def work_loop(self):
+            clipboard_length=-1
+            character=None
+            
+            while self.request_exit.is_set()==False:
+                time.sleep(ScryptCalc.PENDING_ACTIVITY_HEARTBEAT_SECONDS)
+                
+                if self.clipboard_updated.is_set()==True:
+                    self.clipboard_text_lock.acquire()
+
+                    clipboard_length=len(self.clipboard_text)
+
+                    for index in range(clipboard_length):
+                        character=self.clipboard_text[index]
+                        keyboard.write(character,delay=0)
+                        
+                        if self.request_exit.is_set()==True:
+                            break
+                        if index<clipboard_length-1:
+                            time.sleep(ScryptCalc.ALTERNATE_PASTE_INTERKEY_DELAY_SECONDS)
+                    
+                    clipboard_length=-1
+                    del character
+                    character=None
+                    self.clipboard_text=ScryptCalc.PURGE_VALUE_RESULT
+                    del self.clipboard_text
+                    self.clipboard_text=None
+
+                    self.clipboard_updated.clear()
+                    self.clipboard_text_lock.release()
+
+                    if self.request_exit.is_set()==False:
+                        keyboard.hook(self.on_key_press)
+                    
+            keyboard.unhook_all()
+            self.has_quit.set()
+            return
+        
 
     class Scrypt_Calculator(object):
         def __init__(self,input_UI_signaller):
@@ -255,7 +365,7 @@ class ScryptCalc(object):
                 return None
             
         class Main_Window(QMainWindow):
-            def __init__(self,input_parent_app,input_is_ready,input_is_exiting,input_has_quit,input_signaller,input_scrypt_calculator,input_settings):
+            def __init__(self,input_parent_app,input_is_ready,input_is_exiting,input_has_quit,input_signaller,input_scrypt_calculator,input_alternate_paste_agent,input_settings):
                 super(ScryptCalc.UI.Main_Window,self).__init__(None)
 
                 self.parent_app=input_parent_app
@@ -264,13 +374,14 @@ class ScryptCalc(object):
                 self.UI_signaller=input_signaller
                 self.UI_signaller.active_signal.connect(self.signal_response_handler)
                 self.scrypt_calculator=input_scrypt_calculator
+                self.alternate_paste_agent=input_alternate_paste_agent
                 self.param_N=-1
                 self.memory_used_ok=False
                 self.input_enabled=False
                 self.waiting_for_result=False
 
                 self.UI_scale=self.logicalDpiX()/96.0
-                self.signal_response_calls={"compute_done":self.compute_done,"chain_progress":self.update_chain_progress}
+                self.signal_response_calls={"compute_done":self.compute_done,"chain_progress":self.update_chain_progress,"clipboard_requested":self.on_alternate_paste}
                 
                 self.pending_clipboard_text=None
                 self.pending_post_clipboard_calls=[]
@@ -667,6 +778,10 @@ class ScryptCalc(object):
                 del final_text
                 final_text=None
                 Cleanup_Memory()
+                return
+
+            def on_alternate_paste(self,_):
+                self.alternate_paste_agent.UPDATE_CLIPBOARD_TEXT(self.clipboard.text())
                 return
 
             def combobox_result_format_onindexchanged(self):
@@ -1110,7 +1225,7 @@ class ScryptCalc(object):
                     validating_item.setFocus()
                 return
 
-        def __init__(self,input_signaller,input_scrypt_calculator,input_settings=None):
+        def __init__(self,input_signaller,input_scrypt_calculator,input_alternate_paste_agent,input_settings=None):
             qInstallMessageHandler(self.qtmsg_handler)
             self.is_ready=threading.Event()
             self.is_ready.clear()
@@ -1120,6 +1235,7 @@ class ScryptCalc(object):
             self.has_quit.clear()
             self.UI_signaller=input_signaller
             self.scrypt_calculator=input_scrypt_calculator
+            self.alternate_paste_agent=input_alternate_paste_agent
             self.startup_settings=input_settings
             self.working_thread=threading.Thread(target=self.run_UI)
             self.working_thread.daemon=True
@@ -1146,7 +1262,7 @@ class ScryptCalc(object):
             self.UI_app=QApplication([])
             self.UI_app.setAttribute(Qt.AA_DisableWindowContextHelpButton,True)
             self.UI_app.setStyle("fusion")
-            self.UI_window=ScryptCalc.UI.Main_Window(self.UI_app,self.is_ready,self.is_exiting,self.has_quit,self.UI_signaller,self.scrypt_calculator,self.startup_settings)
+            self.UI_window=ScryptCalc.UI.Main_Window(self.UI_app,self.is_ready,self.is_exiting,self.has_quit,self.UI_signaller,self.scrypt_calculator,self.alternate_paste_agent,self.startup_settings)
             self.UI_window.show()
             self.UI_app.aboutToQuit.connect(self.UI_app.deleteLater)
             self.UI_window.raise_()
@@ -1292,21 +1408,27 @@ class ScryptCalc(object):
 
         UI_Signal=ScryptCalc.UI_Signaller()
         Scrypt_Calculator=ScryptCalc.Scrypt_Calculator(UI_Signal)
-        self.Active_UI=ScryptCalc.UI(UI_Signal,Scrypt_Calculator,self.startup_settings)
+        Alternate_Paste_Agent=ScryptCalc.Alternate_Paste_Agent(UI_Signal)
+        self.Active_UI=ScryptCalc.UI(UI_Signal,Scrypt_Calculator,Alternate_Paste_Agent,self.startup_settings)
         
         while self.Active_UI.IS_READY()==False:
             time.sleep(ScryptCalc.PENDING_ACTIVITY_HEARTBEAT_SECONDS)
 
         Scrypt_Calculator.START()
+        Alternate_Paste_Agent.START()
 
         self.main_loop()
         
+        Alternate_Paste_Agent.REQUEST_STOP()
         Scrypt_Calculator.REQUEST_STOP()
+        Alternate_Paste_Agent.CONCLUDE()
         Scrypt_Calculator.CONCLUDE()
         self.Active_UI.CONCLUDE()
         
         del self.Active_UI
         self.Active_UI=None
+        del Alternate_Paste_Agent
+        Alternate_Paste_Agent=None
         del Scrypt_Calculator
         Scrypt_Calculator=None
         del UI_Signal
