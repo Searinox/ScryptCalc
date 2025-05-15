@@ -181,7 +181,9 @@ class ScryptCalc(object):
                     self.result_text_lock.acquire()
 
                     result_length=len(self.result_text)
-                    keyboard.clear_all_hotkeys()
+                    
+                    if result_length>0:
+                        keyboard.clear_all_hotkeys()
 
                     for result_character_index in range(result_length):
                         current_character=self.result_text[result_character_index]
@@ -191,6 +193,9 @@ class ScryptCalc(object):
                             break
                         if result_character_index<result_length-1:
                             time.sleep(ScryptCalc.ALTERNATE_PASTE_INTERKEY_DELAY_SECONDS)
+                    
+                    if result_length>0:
+                        keyboard.clear_all_hotkeys()
                     
                     result_length=-1
                     del current_character
