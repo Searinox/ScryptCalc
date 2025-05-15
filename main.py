@@ -153,7 +153,7 @@ class ScryptCalc(object):
                 
             input_text=ScryptCalc.PURGE_VALUE_RESULT
             del input_text
-            input_text=None
+            input_text=""
             Cleanup_Memory()
             return
         
