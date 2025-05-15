@@ -57,7 +57,7 @@ class ScryptCalc(object):
     
     MAINTHREAD_HEARTBEAT_SECONDS=0.1
     PENDING_ACTIVITY_HEARTBEAT_SECONDS=0.1
-    ALTERNATE_PASTE_INTERKEY_DELAY_SECONDS=0.017
+    ALTERNATE_PASTE_INTERKEY_DELAY_SECONDS=0.0125
     CLIPBOARD_SET_TIMEOUT_MILLISECONDS=1000
 
     COMPUTE_MEMORY_MAX_BYTES=1024**3*2-1
@@ -191,7 +191,8 @@ class ScryptCalc(object):
 
                     for result_character_index in range(result_length):
                         current_character=self.result_text[result_character_index]
-                        keyboard.write(current_character,delay=0,exact=True)
+                        keyboard.stash_state()
+                        keyboard.write(current_character,delay=0,exact=True,restore_state_after=False)
                         
                         if self.request_exit.is_set()==True:
                             break
