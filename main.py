@@ -400,6 +400,7 @@ class ScryptCalc(object):
                 self.memory_used_ok=False
                 self.input_enabled=False
                 self.waiting_for_result=False
+                self.ignore_close=False
 
                 self.UI_scale=self.logicalDpiX()/96.0
                 self.signal_response_calls={"compute_done":self.compute_done,"chain_progress":self.update_chain_progress,"result_requested":self.on_alternate_paste}
@@ -957,8 +958,13 @@ class ScryptCalc(object):
 
                 return
 
+            def reenable_close_and_call(self):
+                self.ignore_close=False
+                self.close()
+                return
+
             def closeEvent(self,event):
-                if self.is_exiting.is_set()==True or self.waiting_for_result==True:
+                if self.ignore_close==True or self.is_exiting.is_set()==True or self.waiting_for_result==True:
                     event.ignore()
                     return
                 
@@ -966,7 +972,8 @@ class ScryptCalc(object):
                 
                 if self.checkbox_clear_clipboard_on_exit.checkState()==Qt.Checked:
                     self.checkbox_clear_clipboard_on_exit.setChecked(False)
-                    self.set_clipboard_text(ScryptCalc.PURGE_VALUE_RESULT,[lambda:self.set_clipboard_text(ScryptCalc.PURGE_VALUE_RESULT),lambda:self.set_clipboard_text(u""),self.close])
+                    self.ignore_close=True
+                    self.set_clipboard_text(ScryptCalc.PURGE_VALUE_RESULT,[lambda:self.set_clipboard_text(ScryptCalc.PURGE_VALUE_RESULT),lambda:self.set_clipboard_text(u""),self.reenable_close_and_call])
                     event.ignore()
                     return
 
