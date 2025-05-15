@@ -160,6 +160,9 @@ class ScryptCalc(object):
         def on_key_press(self,event):
             keyboard.unhook(self.on_key_press)
             
+            if self.request_exit.is_set()==True:
+                return
+            
             if event.event_type!=keyboard.KEY_DOWN or event.name.upper()!=ScryptCalc.ALTERNATE_PASTE_HOTKEY:
                 keyboard.hook(self.on_key_press)
                 return
