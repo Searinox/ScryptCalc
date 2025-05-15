@@ -79,6 +79,11 @@ class ScryptCalc(object):
     DEFAULTPARAM_P=2
     DEFAULTPARAM_FORMAT="base64"
     DEFAULTPARAM_LENGTH=32
+    
+    ALTERNATE_PASTE_HOTKEY="E"
+    ALTERNATE_PASTE_HOTKEY_SHIFT_MODIFIER=True
+    ALTERNATE_PASTE_HOTKEY_CTRL_MODIFIER=True
+    ALTERNATE_PASTE_HOTKEY_ALT_MODIFIER=False
 
     PURGE_VALUE=u"+"*max(PARAM_INPUT_MAX,PARAM_SALT_MAX,PARAM_LENGTH_MAX)
     PURGE_VALUE_RESULT=u"+"*(PARAM_LENGTH_MAX*8)
@@ -155,15 +160,11 @@ class ScryptCalc(object):
         def on_key_press(self,event):
             keyboard.unhook(self.on_key_press)
             
-            if event.event_type!=keyboard.KEY_DOWN:
-                keyboard.hook(self.on_key_press)
-                return
-
-            if keyboard.is_pressed("ctrl")==False or keyboard.is_pressed("shift")==False:
+            if event.event_type!=keyboard.KEY_DOWN or event.name.upper()!=ScryptCalc.ALTERNATE_PASTE_HOTKEY:
                 keyboard.hook(self.on_key_press)
                 return
             
-            if event.name.upper()!="E":
+            if keyboard.is_pressed("shift")!=ScryptCalc.ALTERNATE_PASTE_HOTKEY_SHIFT_MODIFIER or keyboard.is_pressed("ctrl")!=ScryptCalc.ALTERNATE_PASTE_HOTKEY_CTRL_MODIFIER or keyboard.is_pressed("alt")!=ScryptCalc.ALTERNATE_PASTE_HOTKEY_ALT_MODIFIER:
                 keyboard.hook(self.on_key_press)
                 return
             
@@ -1441,6 +1442,7 @@ class ScryptCalc(object):
         return collected_settings
 
     def __init__(self,input_startup_settings_string=u""):
+        ScryptCalc.ALTERNATE_PASTE_HOTKEY=ScryptCalc.ALTERNATE_PASTE_HOTKEY.upper()
         self.startup_settings=ScryptCalc.sanitize_settings_string(input_startup_settings_string)
         input_startup_settings_string=ScryptCalc.PURGE_VALUE_RESULT
         del input_startup_settings_string
