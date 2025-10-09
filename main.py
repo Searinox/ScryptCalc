@@ -19,6 +19,7 @@ GetTickCount64.restype=ctypes.c_uint64
 GetTickCount64.argtypes=()
 
 PYQT5_MAX_SUPPORTED_COMPILE_VERSION="5.12.2"
+MAX_CONFIG_FILE_SIZE_BYTES=768
 
 def Versions_Str_Equal_Or_Less(version_expected,version_actual):
     version_compliant=False
@@ -41,7 +42,7 @@ def Get_Config_String_From_File(input_file_path):
             file_handle.seek(0,2)
             file_size=file_handle.tell()
             file_handle.seek(0,0)
-            if file_size<=768:
+            if file_size<=MAX_CONFIG_FILE_SIZE_BYTES:
                 config_string=file_handle.read()
             else:
                 config_string=u""
@@ -1518,7 +1519,14 @@ try:
 except:
     exe_name=u""
 
+running_as_script=False
 if exe_name==u"python" and sys.argv[0].lower().strip().endswith(u".py"):
+    try:
+        running_as_script=os.path.getsize(sys.argv[0])>MAX_CONFIG_FILE_SIZE_BYTES
+    except:
+        pass
+
+if running_as_script==True:    
     working_directory=os.path.dirname(__file__)
 else:
     working_directory=os.path.dirname(sys.executable)
