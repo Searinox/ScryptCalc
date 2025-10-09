@@ -2,7 +2,7 @@
 
 <p align="center" width="100%"><img src="https://github.com/user-attachments/assets/e64f833c-f65c-4bf7-b2f2-ebfe53d340d5"></p>
 
-ScryptCalc is a PyQt 5 UI frontend that uses hashlib's Scrypt implementation. The only dependencies outside Python's bundled modules are "PyQt" version 5.12 and "base85".
+ScryptCalc is a PyQt 5 UI frontend that uses hashlib's Scrypt implementation. The only dependencies outside Python's bundled modules are "PyQt" version 5.12.2 and "base85".
 
 Extensive attempts have been made to clear sensitive info from the application's memory as soon as it's no longer needed and encourage deallocating and overwriting unneeded memory, but with Python being unmanaged and Qt as well underlying variable management implementations not being set in stone this only mitigates the amount of occurrences. Memory dumps may sometimes contain some of the most recent inputs and their resulting passwords. This is almost exclusively due to the string manipulation mannerisms of Qt5.
 
