@@ -960,11 +960,10 @@ class ScryptCalc(object):
                     if event_type in self.signal_response_calls:
                         self.signal_response_calls[event_type](event["data"])
                 
-                if "data" in event:
-                    event["data"]=ScryptCalc.PURGE_VALUE_RESULT
-                    del event["data"]
-                    event["data"]=None
-                    Cleanup_Memory()
+                event["data"]=ScryptCalc.PURGE_VALUE_RESULT
+                del event["data"]
+                event["data"]=None
+                Cleanup_Memory()
 
                 return
 
