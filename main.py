@@ -1,4 +1,4 @@
-import base64,ctypes,gc,hashlib,keyboard,os,sys,threading,time
+import base64,ctypes,gc,hashlib,keyboard,os,sys,threading,time,base58
 from PyQt5.QtCore import (PYQT_VERSION_STR,Qt,QObject,QCoreApplication,QByteArray,pyqtSignal,qInstallMessageHandler,QTimer)
 from PyQt5.QtWidgets import (QApplication,QMenu,QLabel,QLineEdit,QMainWindow,QPushButton,QSpinBox,QPlainTextEdit,QComboBox,QCheckBox)
 from PyQt5.QtGui import (QFont,QPixmap,QImage,QIcon,QTextOption,QTextCursor,QCursor,QKeySequence)
@@ -550,6 +550,7 @@ class ScryptCalc(object):
                 self.combobox_result_format.addItem("bin")
                 self.combobox_result_format.addItem("hex")
                 self.combobox_result_format.addItem("base32")
+                self.combobox_result_format.addItem("base58")
                 self.combobox_result_format.addItem("base64")
                 self.combobox_result_format.addItem("base85")
                 format_index=self.combobox_result_format.findText(ScryptCalc.DEFAULTPARAM_FORMAT)
@@ -1071,6 +1072,8 @@ class ScryptCalc(object):
                     text_value=self.result_bytes.hex()
                 elif result_format=="base32":
                     text_value=base64.b32encode(self.result_bytes).decode("utf-8")
+                elif result_format=="base58":
+                    text_value=base58.b58encode(self.result_bytes).decode("utf-8")
                 elif result_format=="base64":
                     text_value=base64.b64encode(self.result_bytes).decode("utf-8")
                 elif result_format=="base85":
@@ -1410,7 +1413,7 @@ class ScryptCalc(object):
                                     valid_value=False
                                 elif key=="format":
                                     value=value.lower()
-                                    if value not in ["hex","bin","base16","base32","base64","base85"]:
+                                    if value not in ["hex","bin","base16","base32","base58","base64","base85"]:
                                         valid_value=False
                                 elif key in["clearinput","hideinput","hidesalt","hideresult","clearclipboard","nocopy"]:
                                     value=value.lower()
