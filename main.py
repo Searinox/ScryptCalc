@@ -80,13 +80,14 @@ class ScryptCalc(object):
     DEFAULTPARAM_FORMAT="base64"
     DEFAULTPARAM_LENGTH=32
     
-    ALTERNATE_PASTE_HOTKEY="E"
+    ALTERNATE_PASTE_HOTKEY="Y"
     ALTERNATE_PASTE_HOTKEY_SHIFT_MODIFIER=True
     ALTERNATE_PASTE_HOTKEY_CTRL_MODIFIER=True
     ALTERNATE_PASTE_HOTKEY_ALT_MODIFIER=False
 
-    PURGE_VALUE=u"+"*max(PARAM_INPUT_MAX,PARAM_SALT_MAX,PARAM_LENGTH_MAX)
-    PURGE_VALUE_RESULT=u"+"*(PARAM_LENGTH_MAX*8)
+    PURGE_PADDING_CHARACTER=u"|"
+    PURGE_VALUE=PURGE_PADDING_CHARACTER*max(PARAM_INPUT_MAX,PARAM_SALT_MAX,PARAM_LENGTH_MAX)
+    PURGE_VALUE_RESULT=PURGE_PADDING_CHARACTER*(PARAM_LENGTH_MAX*8)
     
     RESULT_HIDING_CHARACTER="\u25cf"
 
@@ -751,10 +752,9 @@ class ScryptCalc(object):
                 while self.clipboard.text()!=self.pending_clipboard_text and (GetTickCount64()-start_time)<ScryptCalc.CLIPBOARD_SET_TIMEOUT_MILLISECONDS:
                     self.clipboard.setText(self.pending_clipboard_text)
                     QCoreApplication.processEvents()
-                self.pending_clipboard_text=ScryptCalc.PURGE_VALUE_RESULT
-                del self.pending_clipboard_text
-                self.pending_clipboard_text=u""
-                Cleanup_Memory()
+                if len(self.pending_clipboard_text)==0:
+                    self.clipboard.clear()
+                self.purge_pending_clipboard()
                 
                 if len(self.pending_post_clipboard_calls)>0:
                     pending_call=self.pending_post_clipboard_calls[0]
@@ -953,18 +953,16 @@ class ScryptCalc(object):
                 return
 
             def signal_response_handler(self,event):
-                if self.is_exiting.is_set()==True:
+                if self.is_exiting.is_set()==False:
+                    event_type=event["type"]
+                    if event_type in self.signal_response_calls:
+                        self.signal_response_calls[event_type](event["data"])
+                
+                if "data" in event:
                     event["data"]=ScryptCalc.PURGE_VALUE_RESULT
                     del event["data"]
                     event["data"]=None
-                    return
-
-                event_type=event["type"]
-                if event_type in self.signal_response_calls:
-                    self.signal_response_calls[event_type](event["data"])
-                    event["data"]=ScryptCalc.PURGE_VALUE_RESULT
-                    del event["data"]
-                    event["data"]=None
+                    Cleanup_Memory()
 
                 return
 
@@ -990,6 +988,7 @@ class ScryptCalc(object):
                 self.is_exiting.set()
                 
                 self.copy_disabled=False
+                self.purge_pending_clipboard()
                 self.purge_result_bytes()
                 ScryptCalc.UI.Main_Window.purge_lineedit_data(self.textbox_input)
                 ScryptCalc.UI.Main_Window.purge_lineedit_data(self.textbox_salt)
@@ -1100,6 +1099,13 @@ class ScryptCalc(object):
                     
                 Cleanup_Memory()
                 self.update_button_state()
+                return
+
+            def purge_pending_clipboard(self):
+                self.pending_clipboard_text=ScryptCalc.PURGE_VALUE_RESULT
+                del self.pending_clipboard_text
+                self.pending_clipboard_text=u""
+                Cleanup_Memory()
                 return
 
             def purge_result_info(self):
