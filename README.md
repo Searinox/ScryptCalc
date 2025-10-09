@@ -2,13 +2,13 @@
 
 <p align="center" width="100%"><img src="https://github.com/user-attachments/assets/e64f833c-f65c-4bf7-b2f2-ebfe53d340d5"></p>
 
-ScryptCalc is a PyQt 5 UI frontend that uses hashlib's Scrypt implementation.
+ScryptCalc is a PyQt 5 UI frontend that uses hashlib's Scrypt implementation. The only dependencies outside Python's bundled modules are "PyQt" version 5.12 and "base85".
 
 Extensive attempts have been made to clear sensitive info from the application's memory as soon as it's no longer needed and encourage deallocating and overwriting unneeded memory, but with Python being unmanaged and Qt as well underlying variable management implementations not being set in stone this only mitigates the amount of occurrences. Memory dumps may sometimes contain some of the most recent inputs and their resulting passwords. This is almost exclusively due to the string manipulation mannerisms of Qt5.
 
 The UI provides the ability to set Scrypt's N^2, P, and R parameters, as well as the output length in bytes and the output format.
 
-Password, salt, and output size of max 192 characters are supported. The output can be formatted as one of the following: bin, hex, base32, base64, and base85. Since the output isn't displayed in raw bytes it will of course change the number of characters in the displayed output. Higher base formats compress better and result in fewer characters.
+Password, salt, and output size of max 192 characters are supported. The output can be formatted as one of the following: bin, hex, base32, base58, base64, and base85. Since the output isn't displayed in raw bytes it will of course change the number of characters in the displayed output. Higher base formats compress better and result in fewer characters.
 
 When it comes to the Scrypt parameter N, the UI setting represents the exponent of the actual number of rounds, as per the formula N = exp^2. So for example, setting an exponent of 10 will translate into a Scrypt N = 1024.
 
