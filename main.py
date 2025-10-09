@@ -1515,7 +1515,9 @@ if Versions_Str_Equal_Or_Less(PYQT5_MAX_SUPPORTED_COMPILE_VERSION,PYQT_VERSION_S
     sys.stderr.flush()
 
 try:
-    exe_name=sys.executable.lower().strip().replace(u"/",u"\\").split("\\")[-1].replace(u".exe",u"")
+    exe_name=sys.executable.lower().strip().replace(u"/",u"\\").split("\\")[-1]
+    if exe_name.endswith(u".exe")==True:
+        exe_name=exe_name[:-4]
 except:
     exe_name=u""
 
