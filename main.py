@@ -14,10 +14,6 @@ def Cleanup_Memory():
 gc.enable()
 gc.set_threshold(1,1,1)
 
-GetTickCount64=ctypes.windll.kernel32.GetTickCount64
-GetTickCount64.restype=ctypes.c_uint64
-GetTickCount64.argtypes=()
-
 PYQT5_MAX_SUPPORTED_COMPILE_VERSION="5.12.2"
 MAX_CONFIG_FILE_SIZE_BYTES=768
 
@@ -93,6 +89,24 @@ class ScryptCalc(object):
     PURGE_VALUE_RESULT=PURGE_PADDING_CHARACTER*(PARAM_LENGTH_MAX*8)
     
     RESULT_HIDING_CHARACTER="\u25cf"
+    
+    GetTickCount64=ctypes.windll.kernel32.GetTickCount64
+    GetTickCount64.restype=ctypes.c_uint64
+    GetTickCount64.argtypes=()
+
+    suppress_errors_lock=threading.Lock()
+    suppress_errors=False
+    
+    @staticmethod
+    def suppress_unhandled_exception_handling():
+        ScryptCalc.suppress_errors_lock.acquire()
+        if ScryptCalc.suppress_errors==True:
+            return
+        ctypes.windll.kernel32.SetErrorMode(0x0001|0x0002|0x0004|0x8000)
+        ctypes.windll.kernel32.SetUnhandledExceptionFilter(0)
+        suppress_errors=True
+        ScryptCalc.suppress_errors_lock.release()
+        return
 
     @staticmethod
     def base58_encode(input_bytes:bytes)->str:
@@ -339,7 +353,7 @@ class ScryptCalc(object):
                 time.sleep(ScryptCalc.PENDING_ACTIVITY_HEARTBEAT_SECONDS)
                 new_job=self.get_job()
                 if new_job is not None:
-                    start_time=GetTickCount64()
+                    start_time=ScryptCalc.GetTickCount64()
                     value_bytes=bytes(new_job["value"],"utf-8")
                     new_job["value"]=ScryptCalc.PURGE_VALUE
                     del new_job["value"]
@@ -378,7 +392,7 @@ class ScryptCalc(object):
                     new_job={}
                     
                     if self.abort_received.is_set()==False:
-                        self.complete_job(result,GetTickCount64()-start_time)
+                        self.complete_job(result,ScryptCalc.GetTickCount64()-start_time)
                     
                     chain_pass=0
                     result=bytes(ScryptCalc.PURGE_VALUE,"utf-8")
@@ -769,8 +783,8 @@ class ScryptCalc(object):
                 if self.is_exiting.is_set()==True:
                     return
                 
-                start_time=GetTickCount64()
-                while self.clipboard.text()!=self.pending_clipboard_text and (GetTickCount64()-start_time)<ScryptCalc.CLIPBOARD_SET_TIMEOUT_MILLISECONDS:
+                start_time=ScryptCalc.GetTickCount64()
+                while self.clipboard.text()!=self.pending_clipboard_text and (ScryptCalc.GetTickCount64()-start_time)<ScryptCalc.CLIPBOARD_SET_TIMEOUT_MILLISECONDS:
                     self.clipboard.setText(self.pending_clipboard_text)
                     QCoreApplication.processEvents()
                 if len(self.pending_clipboard_text)==0:
@@ -1390,7 +1404,7 @@ class ScryptCalc(object):
                 if separator_pos>-1:
                     key=line[:separator_pos].lower().strip()
                     value=line[separator_pos+1:].strip()
-                    if key in ["title","format","salt","nexp","p","r","length","clearinput","hideinput","hidesalt","chain","hideresult","clearclipboard","nocopy"]:
+                    if key in ["title","format","salt","nexp","p","r","length","clearinput","hideinput","hidesalt","chain","hideresult","clearclipboard","nocopy","allowdumps"]:
                         if key=="nexp":
                             key="N_exp"
                         if key in ["p", "r"]:
@@ -1434,7 +1448,7 @@ class ScryptCalc(object):
                                     value=value.lower()
                                     if value not in ["hex","bin","base16","base32","base58","base64","base85"]:
                                         valid_value=False
-                                elif key in["clearinput","hideinput","hidesalt","hideresult","clearclipboard","nocopy"]:
+                                elif key in["clearinput","hideinput","hidesalt","hideresult","clearclipboard","nocopy","allowdumps"]:
                                     value=value.lower()
                                     if value in ["1","true","yes"]:
                                         value=True
@@ -1447,7 +1461,7 @@ class ScryptCalc(object):
 
                         if valid_value==True:
                             collected_settings[key]=value
-                            if set(["title","format","salt","N_exp","P","R","clearinput","hideinput","hidesalt","chain","hideresult","clearclipboard","nocopy"])==set(collected_settings.keys()):
+                            if set(["title","format","salt","N_exp","P","R","clearinput","hideinput","hidesalt","chain","hideresult","clearclipboard","nocopy","allowdumps"])==set(collected_settings.keys()):
                                 break
                                 
                     key=ScryptCalc.PURGE_VALUE_RESULT
@@ -1462,7 +1476,7 @@ class ScryptCalc(object):
                 settings_lines[-1]=None
                 del settings_lines[-1]
                 
-        for key in ["title","format","salt","N_exp","P","R","length","clearinput","hideinput","hidesalt","chain","hideresult","clearclipboard","nocopy"]:
+        for key in ["title","format","salt","N_exp","P","R","length","clearinput","hideinput","hidesalt","chain","hideresult","clearclipboard","nocopy","allowdumps"]:
             if key not in collected_settings:
                 collected_settings[key]=None
 
@@ -1476,6 +1490,15 @@ class ScryptCalc(object):
     def __init__(self,input_startup_settings_string=u""):
         ScryptCalc.ALTERNATE_PASTE_HOTKEY=ScryptCalc.ALTERNATE_PASTE_HOTKEY.upper()
         self.startup_settings=ScryptCalc.sanitize_settings_string(input_startup_settings_string)
+        no_crash_dumps=True
+        if self.startup_settings["allowdumps"] is not None and self.startup_settings["allowdumps"]==True:
+            no_crash_dumps=False
+        if no_crash_dumps==True:
+            ScryptCalc.suppress_unhandled_exception_handling()
+        no_crash_dumps=True
+        self.startup_settings["nocopy"]=False
+        self.startup_settings["nocopy"]
+        self.startup_settings["nocopy"]=None
         input_startup_settings_string=ScryptCalc.PURGE_VALUE_RESULT
         del input_startup_settings_string
         input_startup_settings_string=u""
