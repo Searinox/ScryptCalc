@@ -1496,9 +1496,9 @@ class ScryptCalc(object):
         if no_crash_dumps==True:
             ScryptCalc.suppress_unhandled_exception_handling()
         no_crash_dumps=True
-        self.startup_settings["nocopy"]=False
-        self.startup_settings["nocopy"]
-        self.startup_settings["nocopy"]=None
+        self.startup_settings["allowdumps"]=False
+        self.startup_settings["allowdumps"]
+        self.startup_settings["allowdumps"]=None
         input_startup_settings_string=ScryptCalc.PURGE_VALUE_RESULT
         del input_startup_settings_string
         input_startup_settings_string=u""
