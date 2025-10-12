@@ -3,17 +3,6 @@ from PyQt5.QtCore import (PYQT_VERSION_STR,Qt,QObject,QCoreApplication,QByteArra
 from PyQt5.QtWidgets import (QApplication,QMenu,QLabel,QLineEdit,QMainWindow,QPushButton,QSpinBox,QPlainTextEdit,QComboBox,QCheckBox)
 from PyQt5.QtGui import (QFont,QPixmap,QImage,QIcon,QTextOption,QTextCursor,QCursor,QKeySequence)
 
-gc_lock=threading.Lock()
-
-def Cleanup_Memory():
-    gc_lock.acquire()
-    gc.collect()
-    gc_lock.release()
-    return
-
-gc.enable()
-gc.set_threshold(1,1,1)
-
 PYQT5_MAX_SUPPORTED_COMPILE_VERSION="5.12.2"
 MAX_CONFIG_FILE_SIZE_BYTES=768
 
@@ -47,6 +36,39 @@ def Get_Config_String_From_File(input_file_path):
         config_string=u""
     
     return config_string
+
+def Get_Custom_Config_File_Path(input_working_directory):
+    if len(sys.argv)>1:
+        custom_config_file_path=sys.argv[-1].strip()
+        if len(custom_config_file_path)>0:
+            custom_config_file_path=custom_config_file_path.replace(u"/",u"\\")
+            if custom_config_file_path.startswith(u"\\\\")==False and ":" not in custom_config_file_path:
+                if custom_config_file_path.startswith(u"\\")==False:
+                    custom_config_file_path=f"\\{custom_config_file_path}"
+                custom_config_file_path=f"{input_working_directory}{custom_config_file_path}"
+    else:
+        custom_config_file_path=u""
+
+    return custom_config_file_path
+
+
+def Running_As_Script():
+    running_as_script=False
+    
+    try:
+        exe_name=sys.executable.lower().strip().replace(u"/",u"\\").split("\\")[-1]
+        if exe_name.endswith(u".exe")==True:
+            exe_name=exe_name[:-4]
+    except:
+        exe_name=u""
+    if exe_name==u"python" and sys.argv[0].lower().strip().endswith(u".py"):
+        try:
+            if os.path.getsize(sys.argv[0])>MAX_CONFIG_FILE_SIZE_BYTES:
+                running_as_script=True
+        except:
+            pass
+        
+    return running_as_script
 
 
 class ScryptCalc(object):
@@ -97,6 +119,15 @@ class ScryptCalc(object):
     suppress_errors_lock=threading.Lock()
     suppress_errors=False
     
+    gc_lock=threading.Lock()
+    
+    @staticmethod
+    def Cleanup_Memory():
+        ScryptCalc.gc_lock.acquire()
+        gc.collect()
+        ScryptCalc.gc_lock.release()
+        return
+    
     @staticmethod
     def suppress_unhandled_exception_handling():
         ScryptCalc.suppress_errors_lock.acquire()
@@ -104,7 +135,7 @@ class ScryptCalc(object):
             return
         ctypes.windll.kernel32.SetErrorMode(0x0001|0x0002|0x0004|0x8000)
         ctypes.windll.kernel32.SetUnhandledExceptionFilter(0)
-        suppress_errors=True
+        ScryptCalc.suppress_errors=True
         ScryptCalc.suppress_errors_lock.release()
         return
 
@@ -176,7 +207,7 @@ class ScryptCalc(object):
             self.working_thread.join()
             del self.working_thread
             self.working_thread=None
-            Cleanup_Memory()
+            ScryptCalc.Cleanup_Memory()
             return
         
         def UPDATE_RESULT_TEXT(self,input_text):
@@ -189,7 +220,7 @@ class ScryptCalc(object):
             input_text=ScryptCalc.PURGE_VALUE_RESULT
             del input_text
             input_text=""
-            Cleanup_Memory()
+            ScryptCalc.Cleanup_Memory()
             return
         
         def on_key_press(self,event):
@@ -243,7 +274,7 @@ class ScryptCalc(object):
                     self.result_text=ScryptCalc.PURGE_VALUE_RESULT
                     del self.result_text
                     self.result_text=u""
-                    Cleanup_Memory()
+                    ScryptCalc.Cleanup_Memory()
 
                     self.result_updated.clear()
                     self.result_text_lock.release()
@@ -291,7 +322,7 @@ class ScryptCalc(object):
             self.working_thread.join()
             del self.working_thread
             self.working_thread=None
-            Cleanup_Memory()
+            ScryptCalc.Cleanup_Memory()
             return
 
         def REQUEST_COMPUTE(self,input_value,input_salt,input_R,input_N,input_P,input_length,input_chain):
@@ -310,7 +341,7 @@ class ScryptCalc(object):
             input_N=1
             input_P=1
             input_length=1
-            Cleanup_Memory()
+            ScryptCalc.Cleanup_Memory()
             return
 
         def REQUEST_ABORT(self):
@@ -326,7 +357,7 @@ class ScryptCalc(object):
                 del self.job
                 self.job=None
             self.lock_job.release()
-            Cleanup_Memory()
+            ScryptCalc.Cleanup_Memory()
             return job_data
         
         def complete_job(self,input_result,input_compute_time_ms):
@@ -337,7 +368,7 @@ class ScryptCalc(object):
             input_compute_time_ms=0
             del input_compute_time_ms
             input_compute_time_ms=None
-            Cleanup_Memory()
+            ScryptCalc.Cleanup_Memory()
             return
         
         def job_canceled(self):
@@ -402,10 +433,10 @@ class ScryptCalc(object):
                     if self.abort_received.is_set()==True:
                         self.job_canceled()
                     
-                    Cleanup_Memory()
+                    ScryptCalc.Cleanup_Memory()
 
             self.UI_signaller=None
-            Cleanup_Memory()
+            ScryptCalc.Cleanup_Memory()
             self.has_quit.set()
             return
 
@@ -427,7 +458,7 @@ class ScryptCalc(object):
                 selected_text=ScryptCalc.PURGE_VALUE_RESULT
                 del selected_text
                 selected_text=None
-                Cleanup_Memory()
+                ScryptCalc.Cleanup_Memory()
                 return None
             
         class Main_Window(QMainWindow):
@@ -763,7 +794,7 @@ class ScryptCalc(object):
                 self.update_output_bits_label()
                 self.set_input_enabled(True)
                 
-                Cleanup_Memory()
+                ScryptCalc.Cleanup_Memory()
                 input_is_ready.set()
                 return
             
@@ -776,7 +807,7 @@ class ScryptCalc(object):
                 input_text=ScryptCalc.PURGE_VALUE_RESULT
                 del input_text
                 input_text=u""
-                Cleanup_Memory()
+                ScryptCalc.Cleanup_Memory()
                 return
             
             def set_clipboard_text_timer_event(self):
@@ -808,7 +839,7 @@ class ScryptCalc(object):
                 self.textedit_result.document().setPlainText(ScryptCalc.PURGE_VALUE_RESULT)
                 self.textedit_result.document().setPlainText(u"")
                 self.textedit_result.document().clear()
-                Cleanup_Memory()
+                ScryptCalc.Cleanup_Memory()
                 return
             
             def textbox_input_onchange(self):
@@ -830,7 +861,7 @@ class ScryptCalc(object):
                 final_text=ScryptCalc.PURGE_VALUE
                 del final_text
                 final_text=None
-                Cleanup_Memory()
+                ScryptCalc.Cleanup_Memory()
                 return
 
             def textbox_salt_onchange(self):
@@ -850,7 +881,7 @@ class ScryptCalc(object):
                 final_text=ScryptCalc.PURGE_VALUE
                 del final_text
                 final_text=None
-                Cleanup_Memory()
+                ScryptCalc.Cleanup_Memory()
                 return
 
             def on_alternate_paste(self,_):
@@ -888,7 +919,7 @@ class ScryptCalc(object):
                 result_text=ScryptCalc.PURGE_VALUE_RESULT
                 del result_text
                 result_text=None
-                Cleanup_Memory()
+                ScryptCalc.Cleanup_Memory()
                 self.button_copy.setEnabled(self.input_enabled and result_not_empty and self.copy_disabled==False)
                 result_not_empty=False
                 return
@@ -984,7 +1015,7 @@ class ScryptCalc(object):
             
             def button_copy_onclick(self):
                 self.set_clipboard_text(self.stored_result_text)
-                Cleanup_Memory()
+                ScryptCalc.Cleanup_Memory()
                 return
 
             def signal_response_handler(self,event):
@@ -996,7 +1027,7 @@ class ScryptCalc(object):
                 event["data"]=ScryptCalc.PURGE_VALUE_RESULT
                 del event["data"]
                 event["data"]=None
-                Cleanup_Memory()
+                ScryptCalc.Cleanup_Memory()
 
                 return
 
@@ -1048,7 +1079,7 @@ class ScryptCalc(object):
                 QCoreApplication.processEvents()
                 self.UI_signaller=None
                 self.parent_app=None
-                Cleanup_Memory()
+                ScryptCalc.Cleanup_Memory()
                 self.has_quit.set()
                 return
 
@@ -1070,7 +1101,7 @@ class ScryptCalc(object):
                 del result_data
                 result_data=None
                 result_data={}
-                Cleanup_Memory()
+                ScryptCalc.Cleanup_Memory()
                 self.button_compute_abort.setText("Compute")
                 self.set_input_enabled(True)
                 self.waiting_for_result=False
@@ -1094,7 +1125,7 @@ class ScryptCalc(object):
             def display_result(self):
                 self.stored_result_text=ScryptCalc.PURGE_VALUE_RESULT
                 self.stored_result_text=u""
-                Cleanup_Memory()
+                ScryptCalc.Cleanup_Memory()
 
                 result_format=self.combobox_result_format.itemText(self.combobox_result_format.currentIndex())
                 text_value=""
@@ -1133,7 +1164,7 @@ class ScryptCalc(object):
                     del result_hash
                     result_hash=None
                     
-                Cleanup_Memory()
+                ScryptCalc.Cleanup_Memory()
                 self.update_button_state()
                 return
 
@@ -1141,7 +1172,7 @@ class ScryptCalc(object):
                 self.pending_clipboard_text=ScryptCalc.PURGE_VALUE_RESULT
                 del self.pending_clipboard_text
                 self.pending_clipboard_text=u""
-                Cleanup_Memory()
+                ScryptCalc.Cleanup_Memory()
                 return
 
             def purge_result_info(self):
@@ -1151,14 +1182,14 @@ class ScryptCalc(object):
                 self.stored_result_text=u""
                 self.label_result_fingerprint.setText(ScryptCalc.PURGE_VALUE_RESULT)
                 self.label_result_fingerprint.setText("Fingerprint:")
-                Cleanup_Memory()
+                ScryptCalc.Cleanup_Memory()
                 return
 
             def purge_result_bytes(self):
                 self.result_bytes=bytes(ScryptCalc.PURGE_VALUE,"utf-8")
                 del self.result_bytes
                 self.result_bytes=bytes()
-                Cleanup_Memory()
+                ScryptCalc.Cleanup_Memory()
                 return
 
             @staticmethod
@@ -1175,7 +1206,7 @@ class ScryptCalc(object):
                 input_item.setSelection(0,0)
                 input_item.setCursorPosition(0)
                 input_item.setText(u"")
-                Cleanup_Memory()
+                ScryptCalc.Cleanup_Memory()
                 return
 
             def lineedit_context_menu_show(self,source_item):
@@ -1239,7 +1270,7 @@ class ScryptCalc(object):
                     self.context_menu.close()
                     self.context_menu.clear()
                     
-                Cleanup_Memory()
+                ScryptCalc.Cleanup_Memory()
                 source_item.setFocus()
                 return
         
@@ -1279,7 +1310,7 @@ class ScryptCalc(object):
                 cursor=None
                 cursor_start=-1
                 cursor_end=-1
-                Cleanup_Memory()
+                ScryptCalc.Cleanup_Memory()
                 self.textedit_result.setFocus()
                 return
 
@@ -1373,7 +1404,7 @@ class ScryptCalc(object):
             self.UI_app.close
             del self.UI_app
             self.UI_app=None
-            Cleanup_Memory()
+            ScryptCalc.Cleanup_Memory()
             return
 
         def IS_RUNNING(self):
@@ -1386,7 +1417,7 @@ class ScryptCalc(object):
             self.working_thread.join()
             del self.working_thread
             self.working_thread=None
-            Cleanup_Memory()
+            ScryptCalc.Cleanup_Memory()
             return
 
     @staticmethod
@@ -1483,11 +1514,13 @@ class ScryptCalc(object):
         input_string=ScryptCalc.PURGE_VALUE_RESULT
         del input_string
         input_string=None
-        Cleanup_Memory()
+        ScryptCalc.Cleanup_Memory()
 
         return collected_settings
 
     def __init__(self,input_startup_settings_string=u""):
+        gc.enable()
+        gc.set_threshold(1,1,1)
         ScryptCalc.ALTERNATE_PASTE_HOTKEY=ScryptCalc.ALTERNATE_PASTE_HOTKEY.upper()
         self.startup_settings=ScryptCalc.sanitize_settings_string(input_startup_settings_string)
         no_crash_dumps=True
@@ -1497,12 +1530,12 @@ class ScryptCalc(object):
             ScryptCalc.suppress_unhandled_exception_handling()
         no_crash_dumps=True
         self.startup_settings["allowdumps"]=False
-        self.startup_settings["allowdumps"]
+        del self.startup_settings["allowdumps"]
         self.startup_settings["allowdumps"]=None
         input_startup_settings_string=ScryptCalc.PURGE_VALUE_RESULT
         del input_startup_settings_string
         input_startup_settings_string=u""
-        Cleanup_Memory()
+        ScryptCalc.Cleanup_Memory()
         return
 
     def flush_std_buffers(self):
@@ -1555,21 +1588,7 @@ if Versions_Str_Equal_Or_Less(PYQT5_MAX_SUPPORTED_COMPILE_VERSION,PYQT_VERSION_S
     sys.stderr.write(f"WARNING: PyQt5 version({PYQT_VERSION_STR}) is higher than the maximum supported version for compiling({PYQT5_MAX_SUPPORTED_COMPILE_VERSION}). The application may run off source code but will fail to compile.\n")
     sys.stderr.flush()
 
-try:
-    exe_name=sys.executable.lower().strip().replace(u"/",u"\\").split("\\")[-1]
-    if exe_name.endswith(u".exe")==True:
-        exe_name=exe_name[:-4]
-except:
-    exe_name=u""
-
-running_as_script=False
-if exe_name==u"python" and sys.argv[0].lower().strip().endswith(u".py"):
-    try:
-        running_as_script=os.path.getsize(sys.argv[0])>MAX_CONFIG_FILE_SIZE_BYTES
-    except:
-        pass
-
-if running_as_script==True:    
+if Running_As_Script()==True:
     working_directory=os.path.dirname(__file__)
 else:
     working_directory=os.path.dirname(sys.executable)
@@ -1578,17 +1597,7 @@ working_directory=os.path.realpath(working_directory)
 os.chdir(working_directory)
 
 default_config_file_path=os.path.join(working_directory,u"config.txt")
-
-if len(sys.argv)>1:
-    custom_config_file_path=sys.argv[-1].strip()
-    if len(custom_config_file_path)>0:
-        custom_config_file_path=custom_config_file_path.replace(u"/",u"\\")
-        if custom_config_file_path.startswith(u"\\\\")==False and ":" not in custom_config_file_path:
-            if custom_config_file_path.startswith(u"\\")==False:
-                custom_config_file_path=f"\\{custom_config_file_path}"
-            custom_config_file_path=f"{working_directory}{custom_config_file_path}"
-else:
-    custom_config_file_path=u""
+custom_config_file_path=Get_Custom_Config_File_Path(working_directory)
 
 config_string=u""
 
@@ -1603,9 +1612,10 @@ ScryptCalcInstance=ScryptCalc(config_string)
 config_string=ScryptCalc.PURGE_VALUE_RESULT
 del config_string
 config_string=u""
+ScryptCalc.Cleanup_Memory()
 
 ScryptCalcInstance.RUN()
 
 del ScryptCalcInstance
 ScryptCalcInstance=None
-Cleanup_Memory()
+ScryptCalc.Cleanup_Memory()
