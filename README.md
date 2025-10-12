@@ -4,7 +4,7 @@
 
 ScryptCalc is a PyQt 5 UI frontend that uses hashlib's Scrypt implementation. The only dependency outside Python's bundled modules is "PyQt" version 5.12.2.
 
-Extensive attempts have been made to clear sensitive info from the application's memory as soon as it's no longer needed and encourage deallocating and overwriting unneeded memory, but with Python being unmanaged and Qt as well underlying variable management implementations not being set in stone this only mitigates the amount of occurrences. When memory dumps are made, they might contain some of the most recent inputs and their resulting passwords. This is almost exclusively due to the string manipulation mannerisms of Qt5. By default ScryptCalc asks Windows not to create crash dumps. To allow them, set "allowdumps=1" according to the config info provided later on.
+Extensive attempts have been made to clear sensitive info from the application's memory as soon as it's no longer needed and encourage deallocating and overwriting unneeded memory, but with Python being unmanaged and Qt as well underlying variable management implementations not being set in stone this only mitigates the amount of occurrences. When memory dumps are made, they might contain some of the most recent inputs and their resulting passwords. This is almost exclusively due to the string manipulation mannerisms of Qt5. By default ScryptCalc asks Windows not to create crash dumps to prevent sensitive data leakage. To allow them, set "allowdumps=1" in the config as per information that follows later.
 
 The UI provides the ability to set Scrypt's N^2, P, and R parameters, as well as the output length in bytes and the output format.
 
