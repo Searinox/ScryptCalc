@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import (QApplication,QMenu,QLabel,QLineEdit,QMainWindow,QPu
 from PyQt5.QtGui import (QFont,QPixmap,QImage,QIcon,QTextOption,QTextCursor,QCursor,QKeySequence)
 
 PYQT5_MAX_SUPPORTED_COMPILE_VERSION="5.12.2"
+DEFAULT_CONFIG_FILE_NAME=u"config.txt"
 MAX_CONFIG_FILE_SIZE_BYTES=768
 
 def Versions_Str_Equal_Or_Less(version_expected,version_actual):
@@ -52,23 +53,23 @@ def Get_Custom_Config_File_Path(input_working_directory):
     return custom_config_file_path
 
 
-def Running_As_Script():
-    running_as_script=False
+def Running_From_Script_File():
+    running_from_script_file=False
     
     try:
         exe_name=sys.executable.lower().strip().replace(u"/",u"\\").split("\\")[-1]
         if exe_name.endswith(u".exe")==True:
-            exe_name=exe_name[:-4]
+            exe_name=exe_name[:-len(u".exe")]
     except:
         exe_name=u""
     if exe_name==u"python" and sys.argv[0].lower().strip().endswith(u".py"):
         try:
             if os.path.getsize(sys.argv[0])>MAX_CONFIG_FILE_SIZE_BYTES:
-                running_as_script=True
+                running_from_script_file=True
         except:
             pass
         
-    return running_as_script
+    return running_from_script_file
 
 
 class ScryptCalc(object):
@@ -80,6 +81,8 @@ class ScryptCalc(object):
     PENDING_ACTIVITY_HEARTBEAT_SECONDS=0.1
     ALTERNATE_PASTE_INTERKEY_DELAY_SECONDS=0.0125
     CLIPBOARD_SET_TIMEOUT_MILLISECONDS=1000
+    
+    UI_SCALE_MODIFIER=1
 
     COMPUTE_MEMORY_MAX_BYTES=1024**3*2-1
 
@@ -199,8 +202,6 @@ class ScryptCalc(object):
             return self.has_quit.is_set()==False
 
         def CONCLUDE(self):
-            global PENDING_ACTIVITY_HEARTBEAT_SECONDS
-
             while self.IS_RUNNING()==True:
                 time.sleep(ScryptCalc.PENDING_ACTIVITY_HEARTBEAT_SECONDS)
             
@@ -314,8 +315,6 @@ class ScryptCalc(object):
             return self.has_quit.is_set()==False
 
         def CONCLUDE(self):
-            global PENDING_ACTIVITY_HEARTBEAT_SECONDS
-
             while self.IS_RUNNING()==True:
                 time.sleep(ScryptCalc.PENDING_ACTIVITY_HEARTBEAT_SECONDS)
             
@@ -442,6 +441,12 @@ class ScryptCalc(object):
 
     class UI(object):
         qtmsg_blacklist_startswith=["WARNING: QApplication was not created in the main()","OleSetClipboard: Failed to set mime data (text/plain) on clipboard: COM error"]
+        WINDOW_TITLE_TEXT = "ScryptCalc"
+        LABEL_RESULT_TEXT = "Result (derived key)"
+        LABEL_FINGERPRINT_TEXT = "Fingerprint:"
+        BUTTON_COMPUTE_TEXT = "Compute"
+        BUTTON_ABORT_TEXT = "Abort"
+        LABEL_RESULT_EMPTY_TEXT = f"{LABEL_RESULT_TEXT}:"
 
         class Text_Editor(QPlainTextEdit):
             def createMimeDataFromSelection(self):
@@ -478,7 +483,7 @@ class ScryptCalc(object):
                 self.waiting_for_result=False
                 self.ignore_close=False
 
-                self.UI_scale=self.logicalDpiX()/96.0
+                self.UI_scale=self.logicalDpiX()/96.0*ScryptCalc.UI_SCALE_MODIFIER
                 self.signal_response_calls={"compute_done":self.compute_done,"chain_progress":self.update_chain_progress,"result_requested":self.on_alternate_paste}
                 
                 self.copy_disabled=False
@@ -490,12 +495,12 @@ class ScryptCalc(object):
                 self.timer_update_clipboard.setSingleShot(True)
 
                 self.font_general=QFont("Arial")
-                self.font_general.setPointSize(9)
+                self.font_general.setPointSize(9*ScryptCalc.UI_SCALE_MODIFIER)
                 self.font_monospace=QFont("Consolas")
-                self.font_monospace.setPointSize(10)
+                self.font_monospace.setPointSize(10*ScryptCalc.UI_SCALE_MODIFIER)
 
                 self.setFixedSize(400*self.UI_scale,492*self.UI_scale)
-                self.setWindowTitle("ScryptCalc")
+                self.setWindowTitle(ScryptCalc.UI.WINDOW_TITLE_TEXT)
                 self.setWindowFlags(self.windowFlags()|Qt.MSWindowsFixedSizeDialogHint)
                 
                 icon_qba=QByteArray.fromBase64(ScryptCalc.APP_ICON_BASE64,QByteArray.Base64Encoding)
@@ -526,6 +531,7 @@ class ScryptCalc(object):
                 self.checkbox_hide_input.setGeometry(150*self.UI_scale,43*self.UI_scale,250*self.UI_scale,26*self.UI_scale)
                 self.checkbox_hide_input.setText("Hide input")
                 self.checkbox_hide_input.setFont(self.font_general)
+                self.checkbox_hide_input.setStyleSheet(f"QCheckBox:indicator {{width:{12*self.UI_scale}px;height:{12*self.UI_scale}px;}}")
 
                 self.label_salt=QLabel(self)
                 self.label_salt.setGeometry(10*self.UI_scale,56*self.UI_scale,100*self.UI_scale,26*self.UI_scale)
@@ -543,6 +549,7 @@ class ScryptCalc(object):
                 self.checkbox_hide_salt.setGeometry(150*self.UI_scale,99*self.UI_scale,250*self.UI_scale,26*self.UI_scale)
                 self.checkbox_hide_salt.setText("Hide salt")
                 self.checkbox_hide_salt.setFont(self.font_general)
+                self.checkbox_hide_salt.setStyleSheet(f"QCheckBox:indicator {{width:{12*self.UI_scale}px;height:{12*self.UI_scale}px;}}")
 
                 self.label_N_exponent=QLabel(self)
                 self.label_N_exponent.setGeometry(10*self.UI_scale,130*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
@@ -625,6 +632,7 @@ class ScryptCalc(object):
                 self.checkbox_clear_input_asap.setGeometry(75*self.UI_scale,255*self.UI_scale,250*self.UI_scale,26*self.UI_scale)
                 self.checkbox_clear_input_asap.setText("Clear password input field on compute")
                 self.checkbox_clear_input_asap.setFont(self.font_general)
+                self.checkbox_clear_input_asap.setStyleSheet(f"QCheckBox:indicator {{width:{12*self.UI_scale}px;height:{12*self.UI_scale}px;}}")
 
                 self.label_chain=QLabel(self)
                 self.label_chain.setGeometry(10*self.UI_scale,282*self.UI_scale,150*self.UI_scale,26*self.UI_scale)
@@ -640,12 +648,12 @@ class ScryptCalc(object):
 
                 self.button_compute_abort=QPushButton(self)
                 self.button_compute_abort.setGeometry(250*self.UI_scale,282*self.UI_scale,90*self.UI_scale,26*self.UI_scale)
-                self.button_compute_abort.setText("Compute")
+                self.button_compute_abort.setText(ScryptCalc.UI.BUTTON_COMPUTE_TEXT)
                 self.button_compute_abort.setFont(self.font_general)
 
                 self.label_result_info=QLabel(self)
                 self.label_result_info.setGeometry(20*self.UI_scale,307*self.UI_scale,300*self.UI_scale,26*self.UI_scale)
-                self.label_result_info.setText("Result (derived key):")
+                self.label_result_info.setText(ScryptCalc.UI.LABEL_RESULT_EMPTY_TEXT)
                 self.label_result_info.setFont(self.font_general)
 
                 self.button_copy=QPushButton(self)
@@ -661,7 +669,7 @@ class ScryptCalc(object):
                 self.textedit_result.setGeometry(5*self.UI_scale,329*self.UI_scale,328*self.UI_scale,82*self.UI_scale)
                 self.textedit_result.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
                 self.textedit_result.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-                self.textedit_result.verticalScrollBar().setStyleSheet(f"QScrollBar:vertical {chr(123)}border:{str(round(1*self.UI_scale))}px; width:{str(round(15*self.UI_scale))}px solid;{chr(125)}")
+                self.textedit_result.verticalScrollBar().setStyleSheet(f"QScrollBar:vertical {{border:{str(round(1*self.UI_scale))}px; width:{str(round(15*self.UI_scale))}px solid;}}")
                 self.textedit_result.setFont(self.font_monospace)
                 self.textedit_result.setWordWrapMode(QTextOption.WrapAnywhere)
                 self.textedit_result.setUndoRedoEnabled(False)
@@ -677,16 +685,18 @@ class ScryptCalc(object):
                 self.checkbox_hide_result.setGeometry(150*self.UI_scale,409*self.UI_scale,250*self.UI_scale,26*self.UI_scale)
                 self.checkbox_hide_result.setText("Hide result")
                 self.checkbox_hide_result.setFont(self.font_general)
+                self.checkbox_hide_result.setStyleSheet(f"QCheckBox:indicator {{width:{12*self.UI_scale}px;height:{12*self.UI_scale}px;}}")
 
                 self.label_result_fingerprint=QLabel(self)
                 self.label_result_fingerprint.setGeometry(90*self.UI_scale,432*self.UI_scale,125*self.UI_scale,26*self.UI_scale)
-                self.label_result_fingerprint.setText("Fingerprint:")
+                self.label_result_fingerprint.setText(ScryptCalc.UI.LABEL_FINGERPRINT_TEXT)
                 self.label_result_fingerprint.setFont(self.font_monospace)
 
                 self.checkbox_clear_clipboard_on_exit=QCheckBox(self)
                 self.checkbox_clear_clipboard_on_exit.setGeometry(115*self.UI_scale,462*self.UI_scale,250*self.UI_scale,26*self.UI_scale)
                 self.checkbox_clear_clipboard_on_exit.setText("Clear clipboard on exit")
                 self.checkbox_clear_clipboard_on_exit.setFont(self.font_general)
+                self.checkbox_clear_clipboard_on_exit.setStyleSheet(f"QCheckBox:indicator {{width:{12*self.UI_scale}px;height:{12*self.UI_scale}px;}}")
 
                 self.context_menu=QMenu(self)
 
@@ -698,7 +708,7 @@ class ScryptCalc(object):
 
                 if input_settings is not None:
                     if input_settings["title"] is not None:
-                        self.setWindowTitle(f"ScryptCalc: {input_settings['title']}")
+                        self.setWindowTitle(f"{ScryptCalc.UI.WINDOW_TITLE_TEXT}: {input_settings['title']}")
                         input_settings["title"]=ScryptCalc.PURGE_VALUE
                         del input_settings["title"]
                         input_settings["title"]=None
@@ -989,7 +999,7 @@ class ScryptCalc(object):
                 if self.button_compute_abort.isEnabled()==False:
                     return
 
-                if self.button_compute_abort.text()=="Abort":
+                if self.button_compute_abort.text()==ScryptCalc.UI.BUTTON_ABORT_TEXT:
                     self.button_compute_abort.setEnabled(False)
                     self.label_result_info.setText("Aborting compute...")
                     self.scrypt_calculator.REQUEST_ABORT()
@@ -1005,7 +1015,7 @@ class ScryptCalc(object):
                 else:
                     self.label_result_info.setText(f"Computing: {self.spinbox_chain.value()} passes remaining...")
                     self.button_compute_abort.setEnabled(True)
-                    self.button_compute_abort.setText("Abort")
+                    self.button_compute_abort.setText(ScryptCalc.UI.BUTTON_ABORT_TEXT)
                 
                 self.scrypt_calculator.REQUEST_COMPUTE(self.textbox_input.text(),self.textbox_salt.text(),self.spinbox_R.value(),self.param_N,self.spinbox_P.value(),self.spinbox_length.value(),self.spinbox_chain.value())
 
@@ -1059,12 +1069,16 @@ class ScryptCalc(object):
                 ScryptCalc.UI.Main_Window.purge_lineedit_data(self.textbox_salt)
                 self.purge_result_info()
                 self.setWindowTitle(ScryptCalc.PURGE_VALUE)
-                self.setWindowTitle("ScryptCalc")
+                self.setWindowTitle(ScryptCalc.UI.WINDOW_TITLE_TEXT)
                 self.spinbox_N_exponent.setValue(1)
                 self.spinbox_R.setValue(1)
                 self.spinbox_P.setValue(1)
                 self.spinbox_length.setValue(1)
                 self.spinbox_chain.setValue(1)
+                self.checkbox_hide_input.setChecked(False)
+                self.checkbox_hide_salt.setChecked(False)
+                self.checkbox_clear_input_asap.setChecked(False)
+                self.checkbox_hide_result.setChecked(False)
                 self.textbox_input.destroy()
                 del self.textbox_input
                 self.textbox_input=None
@@ -1086,7 +1100,7 @@ class ScryptCalc(object):
             def compute_done(self,result_data):
                 if result_data["canceled"]==False:
                     self.result_bytes=result_data["result"]
-                    self.label_result_info.setText(f"Result (derived key) took {round(result_data['compute_time_ms']/1000.0,3)} second(s):")
+                    self.label_result_info.setText(f"{ScryptCalc.UI.LABEL_RESULT_TEXT} took {round(result_data['compute_time_ms']/1000.0,3)} second(s):")
                     result_data["result"]=ScryptCalc.PURGE_VALUE
                     del result_data["result"]
                     result_data["result"]=None
@@ -1102,7 +1116,7 @@ class ScryptCalc(object):
                 result_data=None
                 result_data={}
                 ScryptCalc.Cleanup_Memory()
-                self.button_compute_abort.setText("Compute")
+                self.button_compute_abort.setText(ScryptCalc.UI.BUTTON_COMPUTE_TEXT)
                 self.set_input_enabled(True)
                 self.waiting_for_result=False
                 self.display_result()
@@ -1153,12 +1167,12 @@ class ScryptCalc(object):
                     self.textedit_result.document().setPlainText(self.stored_result_text)
                     
                 if len(self.stored_result_text)>0:
-                    self.label_result_fingerprint.setText(f"Fingerprint: {ScryptCalc.PURGE_VALUE}")
-                    self.label_result_fingerprint.setText("Fingerprint:")
+                    self.label_result_fingerprint.setText(f"{ScryptCalc.UI.LABEL_FINGERPRINT_TEXT} {ScryptCalc.PURGE_VALUE}")
+                    self.label_result_fingerprint.setText(ScryptCalc.UI.LABEL_FINGERPRINT_TEXT)
                     result_hash=hashlib.sha3_512()
                     result_hash.update(bytes(self.stored_result_text,"utf-8"))
                     fingerprint_data=base64.b32encode(result_hash.digest()).decode("utf-8")[18:21]
-                    self.label_result_fingerprint.setText(f"Fingerprint: {fingerprint_data}")
+                    self.label_result_fingerprint.setText(f"{ScryptCalc.UI.LABEL_FINGERPRINT_TEXT} {fingerprint_data}")
                     del fingerprint_data
                     fingerprint_data=None
                     del result_hash
@@ -1177,11 +1191,11 @@ class ScryptCalc(object):
 
             def purge_result_info(self):
                 self.label_result_info.setText(ScryptCalc.PURGE_VALUE_RESULT)
-                self.label_result_info.setText("Result (derived key):")
+                self.label_result_info.setText(ScryptCalc.UI.LABEL_RESULT_EMPTY_TEXT)
                 self.stored_result_text=ScryptCalc.PURGE_VALUE_RESULT
                 self.stored_result_text=u""
                 self.label_result_fingerprint.setText(ScryptCalc.PURGE_VALUE_RESULT)
-                self.label_result_fingerprint.setText("Fingerprint:")
+                self.label_result_fingerprint.setText(ScryptCalc.UI.LABEL_FINGERPRINT_TEXT)
                 ScryptCalc.Cleanup_Memory()
                 return
 
@@ -1588,7 +1602,7 @@ if Versions_Str_Equal_Or_Less(PYQT5_MAX_SUPPORTED_COMPILE_VERSION,PYQT_VERSION_S
     sys.stderr.write(f"WARNING: PyQt5 version({PYQT_VERSION_STR}) is higher than the maximum supported version for compiling({PYQT5_MAX_SUPPORTED_COMPILE_VERSION}). The application may run off source code but will fail to compile.\n")
     sys.stderr.flush()
 
-if Running_As_Script()==True:
+if Running_From_Script_File()==True:
     working_directory=os.path.dirname(__file__)
 else:
     working_directory=os.path.dirname(sys.executable)
@@ -1596,7 +1610,7 @@ else:
 working_directory=os.path.realpath(working_directory)
 os.chdir(working_directory)
 
-default_config_file_path=os.path.join(working_directory,u"config.txt")
+default_config_file_path=os.path.join(working_directory,DEFAULT_CONFIG_FILE_NAME)
 custom_config_file_path=Get_Custom_Config_File_Path(working_directory)
 
 config_string=u""
