@@ -440,7 +440,7 @@ class ScryptCalc(object):
             return
 
     class UI(object):
-        qtmsg_blacklist_startswith=["WARNING: QApplication was not created in the main()","OleSetClipboard: Failed to set mime data (text/plain) on clipboard: COM error"]
+        qtmsg_blacklist_startswith=["WARNING: QApplication was not created in the main()","OleSetClipboard: Failed to set mime data (text/plain) on clipboard: COM error","QBasicTimer::start: QBasicTimer can only be used with threads started with QThread"]
         WINDOW_TITLE_TEXT = "ScryptCalc"
         LABEL_RESULT_TEXT = "Result (derived key)"
         LABEL_FINGERPRINT_TEXT = "Fingerprint:"
@@ -512,8 +512,6 @@ class ScryptCalc(object):
                 del icon_qpix
                 self.setWindowIcon(app_icon)
                 del app_icon
-                del ScryptCalc.APP_ICON_BASE64
-                ScryptCalc.APP_ICON_BASE64=None
 
                 self.label_input=QLabel(self)
                 self.label_input.setGeometry(10*self.UI_scale,0,120*self.UI_scale,26*self.UI_scale)
@@ -1376,6 +1374,7 @@ class ScryptCalc(object):
             self.scrypt_calculator=input_scrypt_calculator
             self.alternate_paste_agent=input_alternate_paste_agent
             self.startup_settings=input_settings
+            self.UI_exit_code=0
             self.working_thread=threading.Thread(target=self.run_UI)
             self.working_thread.daemon=True
             self.working_thread.start()
@@ -1410,12 +1409,12 @@ class ScryptCalc(object):
             del self.startup_settings
             self.startup_settings=None
             
-            sys.exit(self.UI_app.exec_())
+            self.UI_exit_code=self.UI_app.exec_()
             
             self.UI_window.destroy()
             del self.UI_window
             self.UI_window=None
-            self.UI_app.close
+            self.UI_app.quit()
             del self.UI_app
             self.UI_app=None
             ScryptCalc.Cleanup_Memory()
@@ -1432,7 +1431,7 @@ class ScryptCalc(object):
             del self.working_thread
             self.working_thread=None
             ScryptCalc.Cleanup_Memory()
-            return
+            return self.UI_exit_code
 
     @staticmethod
     def sanitize_settings_string(input_string):
@@ -1519,6 +1518,7 @@ class ScryptCalc(object):
             while len(settings_lines)>0:
                 settings_lines[-1]=ScryptCalc.PURGE_VALUE_RESULT
                 settings_lines[-1]=None
+                settings_lines[-1]=""
                 del settings_lines[-1]
                 
         for key in ["title","format","salt","N_exp","P","R","length","clearinput","hideinput","hidesalt","chain","hideresult","clearclipboard","nocopy","allowdumps"]:
@@ -1578,7 +1578,7 @@ class ScryptCalc(object):
         Scrypt_Calculator.REQUEST_STOP()
         Alternate_Paste_Agent.CONCLUDE()
         Scrypt_Calculator.CONCLUDE()
-        self.Active_UI.CONCLUDE()
+        UI_exit_code=self.Active_UI.CONCLUDE()
         
         del self.Active_UI
         self.Active_UI=None
@@ -1588,7 +1588,7 @@ class ScryptCalc(object):
         Scrypt_Calculator=None
         del UI_Signal
         UI_Signal=None
-        return
+        return UI_exit_code
 
     def main_loop(self):
         while self.Active_UI.IS_RUNNING()==True:
@@ -1628,8 +1628,10 @@ del config_string
 config_string=u""
 ScryptCalc.Cleanup_Memory()
 
-ScryptCalcInstance.RUN()
+exit_code=ScryptCalcInstance.RUN()
 
 del ScryptCalcInstance
 ScryptCalcInstance=None
 ScryptCalc.Cleanup_Memory()
+
+sys.exit(exit_code)
