@@ -441,12 +441,12 @@ class ScryptCalc(object):
 
     class UI(object):
         qtmsg_blacklist_startswith=["WARNING: QApplication was not created in the main()","OleSetClipboard: Failed to set mime data (text/plain) on clipboard: COM error","QBasicTimer::start: QBasicTimer can only be used with threads started with QThread"]
-        WINDOW_TITLE_TEXT = "ScryptCalc"
-        LABEL_RESULT_TEXT = "Result (derived key)"
-        LABEL_FINGERPRINT_TEXT = "Fingerprint:"
-        BUTTON_COMPUTE_TEXT = "Compute"
-        BUTTON_ABORT_TEXT = "Abort"
-        LABEL_RESULT_EMPTY_TEXT = f"{LABEL_RESULT_TEXT}:"
+        WINDOW_TITLE_TEXT="ScryptCalc"
+        LABEL_RESULT_TEXT="Result (derived key)"
+        LABEL_FINGERPRINT_TEXT="Fingerprint:"
+        BUTTON_COMPUTE_TEXT="Compute"
+        BUTTON_ABORT_TEXT="Abort"
+        LABEL_RESULT_EMPTY_TEXT=f"{LABEL_RESULT_TEXT}:"
 
         class Text_Editor(QPlainTextEdit):
             def createMimeDataFromSelection(self):
