@@ -8,7 +8,7 @@ del dist\%APPNAME%\qtsvg4.dll
 del dist\%APPNAME%\qtxml4.dll
 exit /b 0
 :BEGIN
-set SOURCE_PATH=D:\Eclipse\Python\python-3.7.4.amd64\Scripts
+set SOURCE_PATH=%PYTHONPATH%\Scripts
 IF %SOURCE_PATH:~-1%==\ SET SOURCE_PATH=%SOURCE_PATH:~0,-1%
 set APPNAME=ScryptCalc
 set FILENAME=main.py
