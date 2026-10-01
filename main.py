@@ -135,6 +135,7 @@ class ScryptCalc(object):
     def suppress_unhandled_exception_handling():
         ScryptCalc.suppress_errors_lock.acquire()
         if ScryptCalc.suppress_errors==True:
+            ScryptCalc.suppress_errors_lock.release()
             return
         ctypes.windll.kernel32.SetErrorMode(0x0001|0x0002|0x0004|0x8000)
         ctypes.windll.kernel32.SetUnhandledExceptionFilter(0)
@@ -792,7 +793,7 @@ class ScryptCalc(object):
                 self.spinbox_R.customContextMenuRequested.connect(lambda:self.lineedit_context_menu_show(self.spinbox_R))
                 self.spinbox_length.valueChanged.connect(self.update_output_bits_label)
                 self.spinbox_length.customContextMenuRequested.connect(lambda:self.lineedit_context_menu_show(self.spinbox_length))
-                self.spinbox_chain.customContextMenuRequested.connect(lambda:self.lineedit_context_menu_show(self.spinbox_length))
+                self.spinbox_chain.customContextMenuRequested.connect(lambda:self.lineedit_context_menu_show(self.spinbox_chain))
                 self.combobox_result_format.currentIndexChanged.connect(self.combobox_result_format_onindexchanged)
                 self.button_compute_abort.clicked.connect(self.compute_abort_go)
                 self.button_copy.clicked.connect(self.button_copy_onclick)
@@ -881,11 +882,13 @@ class ScryptCalc(object):
                 self.textbox_salt.setText(final_text)
                 new_cursor_pos=max(min(initial_cursor_pos-(initial_text_len-final_text_len),final_text_len),0)
                 self.textbox_salt.setCursorPosition(new_cursor_pos)
+                initial_cursor_pos=-1
+                new_cursor_pos=-1
                 initial_text_len=-1
+                final_text_len=-1
                 initial_text=ScryptCalc.PURGE_VALUE
                 del initial_text
                 initial_text=None
-                final_text_len=-1
                 final_text=ScryptCalc.PURGE_VALUE
                 del final_text
                 final_text=None
@@ -1143,7 +1146,7 @@ class ScryptCalc(object):
                 text_value=""
 
                 if result_format=="bin" and len(self.result_bytes)>0:
-                    text_value="{:08b}".format(int(self.result_bytes.hex(),16))
+                    text_value=format(int.from_bytes(self.result_bytes,byteorder="big"),f"0{len(self.result_bytes)*8}b")
                 elif result_format=="hex":
                     text_value=self.result_bytes.hex()
                 elif result_format=="base32":
@@ -1505,7 +1508,7 @@ class ScryptCalc(object):
 
                         if valid_value==True:
                             collected_settings[key]=value
-                            if set(["title","format","salt","N_exp","P","R","clearinput","hideinput","hidesalt","chain","hideresult","clearclipboard","nocopy","allowdumps"])==set(collected_settings.keys()):
+                            if set(["title","format","salt","N_exp","P","R","length","clearinput","hideinput","hidesalt","chain","hideresult","clearclipboard","nocopy","allowdumps"])==set(collected_settings.keys()):
                                 break
                                 
                     key=ScryptCalc.PURGE_VALUE_RESULT
