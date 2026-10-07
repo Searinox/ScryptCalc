@@ -23,18 +23,17 @@ def Versions_Str_Equal_Or_Less(version_expected,version_actual):
     return version_compliant
 
 def Get_Config_String_From_File(input_file_path):
+    config_string=u""
+
     try:
-        with open(input_file_path,"r") as file_handle:
+        with open(input_file_path,"rb") as file_handle:
             file_handle.seek(0,2)
             file_size=file_handle.tell()
             file_handle.seek(0,0)
             if file_size<=MAX_CONFIG_FILE_SIZE_BYTES:
-                config_string=file_handle.read()
-            else:
-                config_string=u""
-            config_string=str(config_string)
+                config_string=file_handle.read().decode("utf-8-sig",errors="ignore")
     except:
-        config_string=u""
+        pass
     
     return config_string
 
@@ -62,7 +61,7 @@ def Running_From_Script_File():
             exe_name=exe_name[:-len(u".exe")]
     except:
         exe_name=u""
-    if exe_name==u"python" and sys.argv[0].lower().strip().endswith(u".py"):
+    if exe_name in [u"python",u"pythonw"] and sys.argv[0].lower().strip().endswith(u".py"):
         try:
             if os.path.getsize(sys.argv[0])>MAX_CONFIG_FILE_SIZE_BYTES:
                 running_from_script_file=True
@@ -167,7 +166,9 @@ class ScryptCalc(object):
             super(ScryptCalc.UI_Signaller,self).__init__(None)
             return
 
-        def SEND_EVENT(self,input_type,input_data={}):
+        def SEND_EVENT(self,input_type,input_data=None):
+            if input_data is None:
+                input_data={}
             output_signal_info={"type":input_type,"data":input_data}
             try:
                 self.active_signal.emit(output_signal_info)
@@ -496,9 +497,9 @@ class ScryptCalc(object):
                 self.timer_update_clipboard.setSingleShot(True)
 
                 self.font_general=QFont("Arial")
-                self.font_general.setPointSize(9*ScryptCalc.UI_SCALE_MODIFIER)
+                self.font_general.setPointSize(round(9*ScryptCalc.UI_SCALE_MODIFIER))
                 self.font_monospace=QFont("Consolas")
-                self.font_monospace.setPointSize(10*ScryptCalc.UI_SCALE_MODIFIER)
+                self.font_monospace.setPointSize(round(10*ScryptCalc.UI_SCALE_MODIFIER))
 
                 self.setFixedSize(round(400*self.UI_scale),round(492*self.UI_scale))
                 self.setWindowTitle(ScryptCalc.UI.WINDOW_TITLE_TEXT)
@@ -530,7 +531,7 @@ class ScryptCalc(object):
                 self.checkbox_hide_input.setGeometry(round(150*self.UI_scale),round(43*self.UI_scale),round(250*self.UI_scale),round(26*self.UI_scale))
                 self.checkbox_hide_input.setText("Hide input")
                 self.checkbox_hide_input.setFont(self.font_general)
-                self.checkbox_hide_input.setStyleSheet(f"QCheckBox:indicator {{width:{round(12*self.UI_scale)}px;height:{round(12*self.UI_scale)}px;}}")
+                self.checkbox_hide_input.setStyleSheet(f"QCheckBox::indicator {{width:{round(12*self.UI_scale)}px;height:{round(12*self.UI_scale)}px;}}")
 
                 self.label_salt=QLabel(self)
                 self.label_salt.setGeometry(round(10*self.UI_scale),round(56*self.UI_scale),round(100*self.UI_scale),round(26*self.UI_scale))
@@ -548,7 +549,7 @@ class ScryptCalc(object):
                 self.checkbox_hide_salt.setGeometry(round(150*self.UI_scale),round(99*self.UI_scale),round(250*self.UI_scale),round(26*self.UI_scale))
                 self.checkbox_hide_salt.setText("Hide salt")
                 self.checkbox_hide_salt.setFont(self.font_general)
-                self.checkbox_hide_salt.setStyleSheet(f"QCheckBox:indicator {{width:{round(12*self.UI_scale)}px;height:{round(12*self.UI_scale)}px;}}")
+                self.checkbox_hide_salt.setStyleSheet(f"QCheckBox::indicator {{width:{round(12*self.UI_scale)}px;height:{round(12*self.UI_scale)}px;}}")
 
                 self.label_N_exponent=QLabel(self)
                 self.label_N_exponent.setGeometry(round(10*self.UI_scale),round(130*self.UI_scale),round(150*self.UI_scale),round(26*self.UI_scale))
@@ -631,7 +632,7 @@ class ScryptCalc(object):
                 self.checkbox_clear_input_asap.setGeometry(round(75*self.UI_scale),round(255*self.UI_scale),round(250*self.UI_scale),round(26*self.UI_scale))
                 self.checkbox_clear_input_asap.setText("Clear password input field on compute")
                 self.checkbox_clear_input_asap.setFont(self.font_general)
-                self.checkbox_clear_input_asap.setStyleSheet(f"QCheckBox:indicator {{width:{round(12*self.UI_scale)}px;height:{round(12*self.UI_scale)}px;}}")
+                self.checkbox_clear_input_asap.setStyleSheet(f"QCheckBox::indicator {{width:{round(12*self.UI_scale)}px;height:{round(12*self.UI_scale)}px;}}")
 
                 self.label_chain=QLabel(self)
                 self.label_chain.setGeometry(round(10*self.UI_scale),round(282*self.UI_scale),round(150*self.UI_scale),round(26*self.UI_scale))
@@ -702,7 +703,7 @@ class ScryptCalc(object):
                 self.checkbox_hide_result.setGeometry(round(125*self.UI_scale),round(409*self.UI_scale),round(250*self.UI_scale),round(26*self.UI_scale))
                 self.checkbox_hide_result.setText("Hide result")
                 self.checkbox_hide_result.setFont(self.font_general)
-                self.checkbox_hide_result.setStyleSheet(f"QCheckBox:indicator {{width:{round(12*self.UI_scale)}px;height:{round(12*self.UI_scale)}px;}}")
+                self.checkbox_hide_result.setStyleSheet(f"QCheckBox::indicator {{width:{round(12*self.UI_scale)}px;height:{round(12*self.UI_scale)}px;}}")
 
                 self.label_result_fingerprint=QLabel(self)
                 self.label_result_fingerprint.setGeometry(round(75*self.UI_scale),round(432*self.UI_scale),round(125*self.UI_scale),round(26*self.UI_scale))
@@ -713,7 +714,7 @@ class ScryptCalc(object):
                 self.checkbox_clear_clipboard_on_exit.setGeometry(round(90*self.UI_scale),round(462*self.UI_scale),round(250*self.UI_scale),round(26*self.UI_scale))
                 self.checkbox_clear_clipboard_on_exit.setText("Clear clipboard on exit")
                 self.checkbox_clear_clipboard_on_exit.setFont(self.font_general)
-                self.checkbox_clear_clipboard_on_exit.setStyleSheet(f"QCheckBox:indicator {{width:{round(12*self.UI_scale)}px;height:{round(12*self.UI_scale)}px;}}")
+                self.checkbox_clear_clipboard_on_exit.setStyleSheet(f"QCheckBox::indicator {{width:{round(12*self.UI_scale)}px;height:{round(12*self.UI_scale)}px;}}")
 
                 self.context_menu=QMenu(self)
 
@@ -825,7 +826,9 @@ class ScryptCalc(object):
                 input_is_ready.set()
                 return
             
-            def set_clipboard_text(self,input_text,post_clipboard_calls=[]):
+            def set_clipboard_text(self,input_text,post_clipboard_calls=None):
+                if post_clipboard_calls is None:
+                    post_clipboard_calls=[]
                 if self.copy_disabled==False:
                     self.pending_clipboard_text=input_text
                     
@@ -1100,15 +1103,15 @@ class ScryptCalc(object):
                 self.checkbox_hide_salt.setChecked(False)
                 self.checkbox_clear_input_asap.setChecked(False)
                 self.checkbox_hide_result.setChecked(False)
-                self.textbox_input.destroy()
+                self.textbox_input.deleteLater()
                 del self.textbox_input
                 self.textbox_input=None
-                self.textbox_salt.destroy()
+                self.textbox_salt.deleteLater()
                 del self.textbox_salt
                 self.textbox_salt=None
                 self.combobox_result_format.setCurrentIndex(1)
                 self.clear_result_field()
-                self.textedit_result.destroy()
+                self.textedit_result.deleteLater()
                 del self.textedit_result
                 self.textedit_result=None
                 QCoreApplication.processEvents()
@@ -1434,7 +1437,7 @@ class ScryptCalc(object):
             
             self.UI_exit_code=self.UI_app.exec_()
             
-            self.UI_window.destroy()
+            self.UI_window.deleteLater()
             del self.UI_window
             self.UI_window=None
             self.UI_app.quit()
@@ -1505,7 +1508,7 @@ class ScryptCalc(object):
                                 if key=="title":
                                     value=value.strip()
                                     if len(value)>ScryptCalc.PARAM_TITLE_LENGTH_MAX:
-                                        value=value[:-(len(value)-ScryptCalc.PARAM_TITLE_LENGTH_MAX)]
+                                        value=value[:ScryptCalc.PARAM_TITLE_LENGTH_MAX]
                                         value=value.strip()
                                     if len(value)==0:
                                         valid_value=False
